@@ -93,7 +93,6 @@ export function SearchProvider(props: ParentProps) {
 
   const actions: SearchActions = {
     setQuery: (query: string) => {
-      console.log('Setting search query to:', query)
       setState('options', 'query', query)
     },
 

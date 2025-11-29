@@ -19,6 +19,9 @@ export interface UseMonacoEditorOptions {
     } | null,
   ) => void
   onScroll?: (scrollTop: number, visibleRange: monaco.Range) => void
+  // Search functionality access
+  setSearchQuery?: (query: string) => void
+  focusSearchInput?: () => void
 }
 
 export interface MonacoEditorAPI {
@@ -179,11 +182,25 @@ export function useMonacoEditor(
       }
     })
 
-    // Disable Ctrl+F shortcut to use custom search
+    // Handle Ctrl+F directly in Monaco editor - update search store directly
     ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => {
-      // Prevent default Monaco find widget
-      // The actual search will be handled by the SearchBar component
-      return null
+      // Get selected text if any
+      const selection = ed.getSelection();
+      const selectedText = selection && !selection.isEmpty()
+        ? ed.getModel()?.getValueInRange(selection) || ''
+        : '';
+
+      // Update search query directly if setSearchQuery is provided
+      if (selectedText && options.setSearchQuery) {
+        options.setSearchQuery(selectedText);
+      }
+
+      // Optionally focus search input if function is provided
+      if (options.focusSearchInput) {
+        options.focusSearchInput();
+      }
+
+      return null; // Prevent default Monaco behavior
     })
 
     // Also disable other find-related shortcuts

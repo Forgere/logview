@@ -30,6 +30,9 @@ interface LogViewerProps {
     selection: { text: string; range: any; line: string } | null,
   ) => void
   onMonacoReady?: (monacoIntegration: any) => void
+  // Search functions
+  setSearchQuery?: (query: string) => void
+  focusSearchInput?: () => void
 }
 
 export function LogViewer(props: LogViewerProps) {
@@ -151,6 +154,9 @@ export function LogViewer(props: LogViewerProps) {
         }
       }
     },
+    // Pass search functions to Monaco editor from props
+    setSearchQuery: props.setSearchQuery,
+    focusSearchInput: props.focusSearchInput,
   })
 
   // Optimize: Search functionality with proper dependency tracking

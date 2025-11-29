@@ -288,39 +288,20 @@ function RouteComponent() {
   // Keyboard shortcuts
   onMount(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      console.log((e.metaKey || e.ctrlKey) && e.key === 'f')
-      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
-        e.preventDefault()
-
-        // If there's selected text, populate the search input with it
-        const text = selectedText()
-        if (text) {
-          searchActions.setQuery(text)
-        }
-
-        // Focus the search input
-        searchInputRef?.focus()
-
-        // Select all text in the search input for easy replacement
-        setTimeout(() => {
-          searchInputRef?.select()
-        }, 0)
-      }
-
       if (e.key === 'Escape') {
         searchActions.setQuery('')
         searchInputRef?.blur()
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown);
 
     // Load sample data for demo
-    loadSampleData()
+    loadSampleData();
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   })
 
   return (
@@ -395,6 +376,8 @@ function RouteComponent() {
                 // Handle virtual scrolling
                 handleVirtualScroll(scrollTop || 0)
               }}
+              setSearchQuery={searchActions.setQuery}
+              focusSearchInput={() => searchInputRef?.focus()}
             />
           </div>
 
