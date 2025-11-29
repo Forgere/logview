@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/solid-router'
 import { createSignal } from 'solid-js'
+import { GripHorizontal } from 'lucide-solid'
 import { ViewerHeader } from '~/components/Viewer/ViewerHeader'
 
 export const Route = createFileRoute('/viewer')({
@@ -42,13 +43,15 @@ const [bottomHeight, setBottomHeight] = createSignal(200)
 
       <div
         ref={el => (containerRef = el)}
-        class="relative w-full bg-white border-t border-gray-300"
+        class="relative w-full"
         style={{ height: `${bottomHeight()}px` }}
       >
         <div
-          class="absolute left-0 right-0 top-0 h-4 cursor-ns-resize bg-gray-300 hover:bg-blue-400"
+          class="absolute left-0 right-0 top-0 h-2 cursor-ns-resize hover:bg-black/20 flex justify-center w-full items-center group"
           onMouseDown={onMouseDown}
-        />
+        >
+          <GripHorizontal size={16} class='opacity-0 group-hover:opacity-100 transition-opacity text-gray-500' />
+        </div>
         <div class="overflow-auto pt-4">底部面板内容</div>
       </div>
     </div>
