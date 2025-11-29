@@ -11,8 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ViewerRouteImport } from './routes/viewer'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DemoTanstackQueryRouteImport } from './routes/demo.tanstack-query'
-import { Route as DemoStartServerFuncsRouteImport } from './routes/demo.start.server-funcs'
 
 const ViewerRoute = ViewerRouteImport.update({
   id: '/viewer',
@@ -24,58 +22,31 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
-  id: '/demo/tanstack-query',
-  path: '/demo/tanstack-query',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoStartServerFuncsRoute = DemoStartServerFuncsRouteImport.update({
-  id: '/demo/start/server-funcs',
-  path: '/demo/start/server-funcs',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/viewer': typeof ViewerRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/viewer': typeof ViewerRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/viewer': typeof ViewerRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/viewer'
-    | '/demo/tanstack-query'
-    | '/demo/start/server-funcs'
+  fullPaths: '/' | '/viewer'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/viewer' | '/demo/tanstack-query' | '/demo/start/server-funcs'
-  id:
-    | '__root__'
-    | '/'
-    | '/viewer'
-    | '/demo/tanstack-query'
-    | '/demo/start/server-funcs'
+  to: '/' | '/viewer'
+  id: '__root__' | '/' | '/viewer'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ViewerRoute: typeof ViewerRoute
-  DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
-  DemoStartServerFuncsRoute: typeof DemoStartServerFuncsRoute
 }
 
 declare module '@tanstack/solid-router' {
@@ -94,28 +65,12 @@ declare module '@tanstack/solid-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/demo/tanstack-query': {
-      id: '/demo/tanstack-query'
-      path: '/demo/tanstack-query'
-      fullPath: '/demo/tanstack-query'
-      preLoaderRoute: typeof DemoTanstackQueryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo/start/server-funcs': {
-      id: '/demo/start/server-funcs'
-      path: '/demo/start/server-funcs'
-      fullPath: '/demo/start/server-funcs'
-      preLoaderRoute: typeof DemoStartServerFuncsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ViewerRoute: ViewerRoute,
-  DemoTanstackQueryRoute: DemoTanstackQueryRoute,
-  DemoStartServerFuncsRoute: DemoStartServerFuncsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

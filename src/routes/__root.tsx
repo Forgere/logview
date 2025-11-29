@@ -4,7 +4,6 @@ import {
   Scripts,
   createRootRouteWithContext,
 } from '@tanstack/solid-router'
-import { TanStackRouterDevtools } from '@tanstack/solid-router-devtools'
 import TanStackQueryProvider from '../integrations/tanstack-query/provider.tsx'
 
 import '@fontsource/inter'
@@ -12,31 +11,30 @@ import '@fontsource/inter'
 import { HydrationScript } from 'solid-js/web'
 import { Suspense } from 'solid-js'
 
-import Header from '../components/Header'
-
 import styleCss from '../styles.css?url'
 
 export const Route = createRootRouteWithContext()({
   head: () => ({
     links: [{ rel: 'stylesheet', href: styleCss }],
+    meta: [
+      { title: 'HyperLog - Log Viewer' },
+      { name: 'description', content: 'A powerful log file viewer' },
+    ],
   }),
   shellComponent: RootComponent,
 })
 
 function RootComponent() {
   return (
-    <html>
+    <html class="dark">
       <head>
         <HydrationScript />
       </head>
-      <body>
+      <body class="bg-[#1e1e1e] text-white">
         <HeadContent />
         <Suspense>
           <TanStackQueryProvider>
-            <Header />
-
             <Outlet />
-            <TanStackRouterDevtools />
           </TanStackQueryProvider>
         </Suspense>
         <Scripts />
