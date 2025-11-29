@@ -1,8 +1,4 @@
-import type {
-  FileExtensionConfig,
-  HighlightRule,
-  ViewSettings,
-} from '~/types'
+import type { FileExtensionConfig, HighlightRule, ViewSettings } from '~/types'
 import { DEFAULT_VIEW_SETTINGS } from '~/types'
 
 const STORAGE_PREFIX = 'hyperlog_config_'
@@ -18,7 +14,7 @@ export const getExtension = (fileName: string): string => {
 export const saveConfigForExtension = (
   extension: string,
   viewSettings: ViewSettings,
-  highlightRules: HighlightRule[],
+  highlightRules: Array<HighlightRule>,
 ) => {
   const config: FileExtensionConfig = {
     extension,
@@ -26,7 +22,10 @@ export const saveConfigForExtension = (
     highlightRules,
   }
   try {
-    localStorage.setItem(`${STORAGE_PREFIX}${extension}`, JSON.stringify(config))
+    localStorage.setItem(
+      `${STORAGE_PREFIX}${extension}`,
+      JSON.stringify(config),
+    )
   } catch (e) {
     console.error('Failed to save config to local storage', e)
   }
@@ -47,7 +46,7 @@ export const loadConfigForExtension = (
           ...parsed.viewSettings,
           newLineConfig: {
             ...DEFAULT_VIEW_SETTINGS.newLineConfig,
-            ...(parsed.viewSettings.newLineConfig || {}),
+            ...parsed.viewSettings.newLineConfig,
           },
         },
       }

@@ -9,7 +9,7 @@ export interface DiffPart {
  * Character-level diff algorithm using LCS (Longest Common Subsequence)
  * Optimized for comparing log strings/selections
  */
-export const diffChars = (text1: string, text2: string): DiffPart[] => {
+export const diffChars = (text1: string, text2: string): Array<DiffPart> => {
   if (text1 === text2) return [{ type: 'equal', value: text1 }]
   if (!text1) return [{ type: 'insert', value: text2 }]
   if (!text2) return [{ type: 'delete', value: text1 }]
@@ -32,7 +32,7 @@ export const diffChars = (text1: string, text2: string): DiffPart[] => {
   }
 
   // Backtrack to find the diff path
-  const parts: DiffPart[] = []
+  const parts: Array<DiffPart> = []
   let i = n
   let j = m
 
@@ -51,7 +51,7 @@ export const diffChars = (text1: string, text2: string): DiffPart[] => {
   }
 
   // Compact adjacent parts of same type
-  const compacted: DiffPart[] = []
+  const compacted: Array<DiffPart> = []
   if (parts.length > 0) {
     let current = parts[0]
     for (let k = 1; k < parts.length; k++) {

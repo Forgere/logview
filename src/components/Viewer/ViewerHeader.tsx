@@ -1,11 +1,8 @@
-
-import { Terminal } from 'lucide-solid';
+import { Terminal } from 'lucide-solid'
 
 export const ViewerHeader = () => {
-
   return (
     <header class="flex-none bg-[#1e1e1e] border-b border-[#333] relative select-none z-20">
-
       <div class="px-4 py-2 flex items-center justify-between">
         {/* Left Side: App Title & Actions */}
         <div class="flex items-center gap-4">
@@ -17,17 +14,15 @@ export const ViewerHeader = () => {
 
         {/* Right Side: Consolidated Status & Info */}
         <div class="flex items-center gap-4">
-          
           <div class="flex items-center gap-6 text-xs text-gray-500 border-r border-[#333] pr-4">
-             
-             {/* Consolidated Status Indicator */}
-             {/* <div class={`flex items-center gap-2 font-bold ${status.color} transition-colors`}>
+            {/* Consolidated Status Indicator */}
+            {/* <div class={`flex items-center gap-2 font-bold ${status.color} transition-colors`}>
                 {status.icon}
                 <span>{status.label}</span>
                 <span class="font-normal text-gray-500">{status.subLabel}</span>
                 
                 {/* Quick Action to Stop Watch */}
-                {/* {watchPattern && (
+            {/* {watchPattern && (
                     <button 
                         onClick={() => setWatchPattern('')} 
                         class="ml-2 p-0.5 rounded hover:bg-[#333] text-gray-500 hover:text-white transition-colors"
@@ -45,7 +40,7 @@ export const ViewerHeader = () => {
                 <span class="text-[10px] text-gray-600">{formatBytes(fileSize)}</span>
               </div>
             )} */}
-            
+
             {/* Line Count */}
             {/* <div class="min-w-[80px] text-right font-mono">{totalLines.toLocaleString()} lines</div> */}
           </div>
@@ -59,5 +54,5 @@ export const ViewerHeader = () => {
         </div>
       </div>
     </header>
-  );
-};
+  )
+}

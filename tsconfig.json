@@ -1,6 +1,12 @@
 {
-  "include": ["**/*.ts", "**/*.tsx", "eslint.config.js", "prettier.config.js", "vite.config.js"],
-  
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "eslint.config.js",
+    "prettier.config.js",
+    "vite.config.js"
+  ],
+
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "preserve",
@@ -26,6 +32,5 @@
     "paths": {
       "~/*": ["./src/*"]
     }
-  
   }
 }

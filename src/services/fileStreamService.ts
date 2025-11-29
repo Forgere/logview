@@ -1,5 +1,5 @@
 export interface StreamOptions {
-  onChunk: (lines: string[]) => void
+  onChunk: (lines: Array<string>) => void
   onProgress: (bytesRead: number, totalBytes: number) => void
   onComplete: () => void
   onError: (error: Error) => void
@@ -18,7 +18,7 @@ export class FileStreamer {
     let leftover = ''
 
     // Batching configuration to reduce function calls
-    let lineBuffer: string[] = []
+    let lineBuffer: Array<string> = []
     const BATCH_SIZE = 5000
 
     try {
@@ -26,12 +26,14 @@ export class FileStreamer {
       const textStream = stream.pipeThrough(new TextDecoderStream())
       const reader = textStream.getReader()
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       while (true) {
         if (signal.aborted) {
           reader.cancel()
           break
         }
 
+         
         while (this.isPaused) {
           await new Promise((r) => setTimeout(r, 100))
           if (signal.aborted) break
@@ -63,10 +65,8 @@ export class FileStreamer {
 
           const newLines = completeLines.split('\n')
 
-          for (let i = 0; i < newLines.length; i++) {
-            const line = newLines[i].endsWith('\r')
-              ? newLines[i].slice(0, -1)
-              : newLines[i]
+          for (const rawLine of newLines) {
+            const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine
             lineBuffer.push(line)
 
             if (lineBuffer.length >= BATCH_SIZE) {

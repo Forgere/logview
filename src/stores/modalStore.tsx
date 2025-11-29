@@ -1,5 +1,6 @@
-import { createContext, useContext, type ParentProps } from 'solid-js'
+import { createContext, useContext } from 'solid-js'
 import { createStore } from 'solid-js/store'
+import type { ParentProps } from 'solid-js'
 
 type ModalName =
   | 'settings'

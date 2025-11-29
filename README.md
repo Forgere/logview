@@ -1,4 +1,4 @@
-Welcome to your new TanStack app! 
+Welcome to your new TanStack app!
 
 # Getting Started
 
@@ -21,7 +21,6 @@ bun --bun run build
 
 This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
 
-
 ## Solid-UI
 
 This installation of Solid-UI follows the manual instructions but was modified to work with Tailwind V4.
@@ -32,9 +31,8 @@ To install the components, run the following command (this install button):
 npx solidui-cli@latest add button
 ```
 
-
-
 ## Routing
+
 This project uses [TanStack Router](https://tanstack.com/router). The initial setup is a file based router. Which means that the routes are managed as files in `src/routes`.
 
 ### Adding A Route
@@ -50,7 +48,7 @@ Now that you have two routes you can use a `Link` component to navigate between 
 To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/solid-router`.
 
 ```tsx
-import { Link } from "@tanstack/solid-router";
+import { Link } from '@tanstack/solid-router'
 ```
 
 Then anywhere in your JSX you can use it like so:
@@ -73,7 +71,7 @@ Here is an example layout that includes a header:
 import { Outlet, createRootRoute } from '@tanstack/solid-router'
 import { TanStackRouterDevtools } from '@tanstack/solid-router-devtools'
 
-import { Link } from "@tanstack/solid-router";
+import { Link } from '@tanstack/solid-router'
 
 export const Route = createRootRoute({
   component: () => (
@@ -104,26 +102,26 @@ For example:
 ```tsx
 const peopleRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/people",
+  path: '/people',
   loader: async () => {
-    const response = await fetch("https://swapi.dev/api/people");
+    const response = await fetch('https://swapi.dev/api/people')
     return response.json() as Promise<{
       results: {
-        name: string;
-      }[];
-    }>;
+        name: string
+      }[]
+    }>
   },
   component: () => {
-    const data = peopleRoute.useLoaderData();
+    const data = peopleRoute.useLoaderData()
     return (
       <ul>
         {data.results.map((person) => (
           <li key={person.name}>{person.name}</li>
         ))}
       </ul>
-    );
+    )
   },
-});
+})
 ```
 
 Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/solid/guide/data-loading#loader-parameters).
@@ -132,9 +130,7 @@ Loaders simplify your data fetching logic dramatically. Check out more informati
 
 Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
 
-
 ## Linting & Formatting
-
 
 This project uses [eslint](https://eslint.org/) and [prettier](https://prettier.io/) for linting and formatting. Eslint is configured using [tanstack/eslint-config](https://tanstack.com/config/latest/docs/eslint). The following scripts are available:
 
@@ -143,7 +139,6 @@ bun --bun run lint
 bun --bun run format
 bun --bun run check
 ```
-
 
 # Learn More
 

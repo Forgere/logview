@@ -1,14 +1,15 @@
-import { createContext, useContext, type ParentProps } from 'solid-js'
+import { createContext, useContext } from 'solid-js'
 import { createStore, produce } from 'solid-js/store'
-import type { ViewMode, WatchMode, ViewSettings, FileInfo } from '~/types'
+import type { ParentProps } from 'solid-js'
+import type { FileInfo, ViewMode, ViewSettings, WatchMode } from '~/types'
 import { FileStreamer } from '~/services/fileStreamService'
 
 interface LogState {
   // File info
   file: FileInfo | null
   // Lines
-  lines: string[]
-  rawLines: string[] // For re-processing on config change
+  lines: Array<string>
+  rawLines: Array<string> // For re-processing on config change
   // Stream state
   isStreaming: boolean
   progress: number
@@ -18,7 +19,7 @@ interface LogState {
   watchPattern: string
   watchMode: WatchMode
   watchMatchIndex: number | null
-  pendingWatchMatches: number[]
+  pendingWatchMatches: Array<number>
   // Scroll control
   lastScrollRequest: number
 }
@@ -42,16 +43,15 @@ const LogContext = createContext<LogStore>()
 
 // Helper to process raw lines based on config
 const processChunk = (
-  chunk: string[],
+  chunk: Array<string>,
   config: ViewSettings['newLineConfig'],
-): string[] => {
-  if (!config || !config.enabled || !config.match) return chunk
+): Array<string> => {
+  if (!config.enabled || !config.match) return chunk
 
-  const result: string[] = []
+  const result: Array<string> = []
   const { match, position } = config
 
-  for (let i = 0; i < chunk.length; i++) {
-    const line = chunk[i]
+  for (const line of chunk) {
     if (line.indexOf(match) === -1) {
       result.push(line)
       continue
@@ -83,7 +83,7 @@ const processChunk = (
 export function LogProvider(props: ParentProps) {
   let streamer: FileStreamer | null = null
   let uiUpdateTimer: number | null = null
-  let pendingBuffer: string[] = []
+  let pendingBuffer: Array<string> = []
 
   const [state, setState] = createStore<LogState>({
     file: null,
@@ -113,7 +113,7 @@ export function LogProvider(props: ParentProps) {
         // Check matches on new lines
         if (watchPattern) {
           const lowerPattern = watchPattern.toLowerCase()
-          const newMatches: number[] = []
+          const newMatches: Array<number> = []
 
           for (let i = 0; i < chunkToAppend.length; i++) {
             if (chunkToAppend[i].toLowerCase().indexOf(lowerPattern) !== -1) {
@@ -127,9 +127,8 @@ export function LogProvider(props: ParentProps) {
             } else {
               if (s.watchMatchIndex === null) {
                 s.watchMatchIndex = newMatches[0]
-                if (watchMode === 'PAUSE_ALL') {
-                  s.viewMode = 'browse'
-                }
+                // watchMode is 'PAUSE_ALL' here (only other option)
+                s.viewMode = 'browse'
               }
             }
           }

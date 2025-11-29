@@ -31,8 +31,8 @@ export const buildSearchRegex = (options: SearchOptions): RegExp | null => {
 export const findMatchesInLine = (
   line: string,
   regex: RegExp,
-): { start: number; end: number }[] => {
-  const matches: { start: number; end: number }[] = []
+): Array<{ start: number; end: number }> => {
+  const matches: Array<{ start: number; end: number }> = []
 
   // Reset lastIndex for global regex
   regex.lastIndex = 0

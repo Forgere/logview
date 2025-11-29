@@ -1,16 +1,17 @@
-import { createContext, useContext, createMemo, type ParentProps } from 'solid-js'
+import { createContext, createMemo, useContext } from 'solid-js'
 import { createStore, produce } from 'solid-js/store'
+import type { ParentProps } from 'solid-js'
 import type { LogMarker } from '~/types'
 
 interface MarkerState {
-  markers: LogMarker[]
+  markers: Array<LogMarker>
   selectedIds: Set<string>
 }
 
 interface MarkerActions {
   addMarker: (marker: LogMarker) => void
   removeMarker: (id: string) => void
-  removeMarkers: (ids: string[]) => void
+  removeMarkers: (ids: Array<string>) => void
   updateMarker: (id: string, updates: Partial<LogMarker>) => void
   toggleSelect: (id: string) => void
   selectAll: () => void
@@ -22,8 +23,8 @@ type MarkerStore = [
   MarkerState,
   MarkerActions,
   {
-    sortedMarkers: () => LogMarker[]
-    selectedMarkers: () => LogMarker[]
+    sortedMarkers: () => Array<LogMarker>
+    selectedMarkers: () => Array<LogMarker>
   },
 ]
 
@@ -61,7 +62,7 @@ export function MarkerProvider(props: ParentProps) {
       )
     },
 
-    removeMarkers: (ids: string[]) => {
+    removeMarkers: (ids: Array<string>) => {
       const idsSet = new Set(ids)
       setState(
         produce((s) => {
@@ -110,7 +111,9 @@ export function MarkerProvider(props: ParentProps) {
   }
 
   return (
-    <MarkerContext.Provider value={[state, actions, { sortedMarkers, selectedMarkers }]}>
+    <MarkerContext.Provider
+      value={[state, actions, { sortedMarkers, selectedMarkers }]}
+    >
       {props.children}
     </MarkerContext.Provider>
   )

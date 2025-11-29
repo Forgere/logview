@@ -67,7 +67,7 @@ export interface ViewSettings {
 export interface FileExtensionConfig {
   extension: string
   viewSettings: ViewSettings
-  highlightRules: HighlightRule[]
+  highlightRules: Array<HighlightRule>
 }
 
 // View mode: following new lines vs browsing
@@ -83,7 +83,7 @@ export interface PanelNode {
   id: string
   type: 'panel' | 'split'
   direction?: SplitDirection
-  children?: PanelNode[]
+  children?: Array<PanelNode>
   size?: number // flex ratio
   viewerId?: string // links to a viewer instance
 }
@@ -117,7 +117,7 @@ export const DEFAULT_VIEW_SETTINGS: ViewSettings = {
 }
 
 // Default highlight rules (common log patterns)
-export const DEFAULT_HIGHLIGHT_RULES: HighlightRule[] = [
+export const DEFAULT_HIGHLIGHT_RULES: Array<HighlightRule> = [
   {
     id: 'error-default',
     pattern: 'ERROR|FATAL|CRITICAL',

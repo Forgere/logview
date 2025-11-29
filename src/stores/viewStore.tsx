@@ -1,16 +1,17 @@
-import { createContext, useContext, createEffect, type ParentProps } from 'solid-js'
+import { createContext, createEffect, useContext } from 'solid-js'
 import { createStore } from 'solid-js/store'
-import type { ViewSettings, HighlightRule } from '~/types'
-import { DEFAULT_VIEW_SETTINGS, DEFAULT_HIGHLIGHT_RULES } from '~/types'
+import type { ParentProps } from 'solid-js'
+import type { HighlightRule, ViewSettings } from '~/types'
+import { DEFAULT_HIGHLIGHT_RULES, DEFAULT_VIEW_SETTINGS } from '~/types'
 import {
+  getExtension,
   loadConfigForExtension,
   saveConfigForExtension,
-  getExtension,
 } from '~/services/configService'
 
 interface ViewState {
   settings: ViewSettings
-  highlightRules: HighlightRule[]
+  highlightRules: Array<HighlightRule>
   currentExtension: string
 }
 

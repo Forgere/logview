@@ -1,11 +1,12 @@
-import { createContext, useContext, createMemo, type ParentProps } from 'solid-js'
+import { createContext, createMemo, useContext } from 'solid-js'
 import { createStore } from 'solid-js/store'
-import type { SearchOptions, SearchMatch } from '~/types'
+import type { ParentProps } from 'solid-js'
+import type { SearchMatch, SearchOptions } from '~/types'
 import { buildSearchRegex } from '~/utils/searchHelpers'
 
 interface SearchState {
   options: SearchOptions
-  matches: SearchMatch[]
+  matches: Array<SearchMatch>
   currentMatchIndex: number
 }
 
@@ -14,14 +15,18 @@ interface SearchActions {
   setIsRegex: (isRegex: boolean) => void
   setCaseSensitive: (caseSensitive: boolean) => void
   setWholeWord: (wholeWord: boolean) => void
-  updateMatches: (lines: string[]) => void
+  updateMatches: (lines: Array<string>) => void
   nextMatch: () => void
   prevMatch: () => void
   goToMatch: (index: number) => void
   clearSearch: () => void
 }
 
-type SearchStore = [SearchState, SearchActions, { currentMatch: () => SearchMatch | null }]
+type SearchStore = [
+  SearchState,
+  SearchActions,
+  { currentMatch: () => SearchMatch | null },
+]
 
 const SearchContext = createContext<SearchStore>()
 
@@ -39,7 +44,10 @@ export function SearchProvider(props: ParentProps) {
 
   // Derived: current match
   const currentMatch = createMemo(() => {
-    if (state.currentMatchIndex >= 0 && state.currentMatchIndex < state.matches.length) {
+    if (
+      state.currentMatchIndex >= 0 &&
+      state.currentMatchIndex < state.matches.length
+    ) {
       return state.matches[state.currentMatchIndex]
     }
     return null
@@ -62,14 +70,14 @@ export function SearchProvider(props: ParentProps) {
       setState('options', 'wholeWord', wholeWord)
     },
 
-    updateMatches: (lines: string[]) => {
+    updateMatches: (lines: Array<string>) => {
       const regex = buildSearchRegex(state.options)
       if (!regex) {
         setState({ matches: [], currentMatchIndex: -1 })
         return
       }
 
-      const matches: SearchMatch[] = []
+      const matches: Array<SearchMatch> = []
       for (let i = 0; i < lines.length; i++) {
         regex.lastIndex = 0
         let matchIndex = 0

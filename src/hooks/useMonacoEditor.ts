@@ -1,36 +1,32 @@
-import {
-  createSignal,
-  createEffect,
-  onMount,
-  onCleanup,
-  on,
-  type Accessor,
-} from 'solid-js'
+import { createEffect, createSignal, on, onCleanup, onMount } from 'solid-js'
 import loader from '@monaco-editor/loader'
-import type { editor, Monaco } from 'monaco-editor'
-import type { ViewSettings, HighlightRule, SearchMatch } from '~/types'
+import type { Accessor } from 'solid-js'
+import type * as monaco from 'monaco-editor'
+import type { HighlightRule, SearchMatch, ViewSettings } from '~/types'
 
 export interface UseMonacoEditorOptions {
   content: Accessor<string>
   settings: Accessor<ViewSettings>
-  highlightRules: Accessor<HighlightRule[]>
-  searchMatches: Accessor<SearchMatch[]>
+  highlightRules: Accessor<Array<HighlightRule>>
+  searchMatches: Accessor<Array<SearchMatch>>
   currentMatchIndex: Accessor<number>
-  markerLines: Accessor<number[]>
-  onSelectionChange?: (selection: {
-    text: string
-    range: editor.IRange
-    line: string
-  } | null) => void
-  onScroll?: (scrollTop: number, visibleRange: editor.IRange) => void
+  markerLines: Accessor<Array<number>>
+  onSelectionChange?: (
+    selection: {
+      text: string
+      range: monaco.IRange
+      line: string
+    } | null,
+  ) => void
+  onScroll?: (scrollTop: number, visibleRange: monaco.Range) => void
 }
 
 export interface MonacoEditorAPI {
-  editor: Accessor<editor.IStandaloneCodeEditor | null>
-  monaco: Accessor<Monaco | null>
+  editor: Accessor<monaco.editor.IStandaloneCodeEditor | null>
+  monaco: Accessor<typeof monaco | null>
   scrollToLine: (line: number, center?: boolean) => void
   revealLine: (line: number) => void
-  getVisibleRange: () => editor.IRange | null
+  getVisibleRange: () => monaco.Range | null
 }
 
 export function useMonacoEditor(
@@ -38,13 +34,13 @@ export function useMonacoEditor(
   options: UseMonacoEditorOptions,
 ): MonacoEditorAPI {
   const [editorInstance, setEditorInstance] =
-    createSignal<editor.IStandaloneCodeEditor | null>(null)
-  const [monacoInstance, setMonacoInstance] = createSignal<Monaco | null>(null)
+    createSignal<monaco.editor.IStandaloneCodeEditor | null>(null)
+  const [monacoInstance, setMonacoInstance] = createSignal<typeof monaco | null>(null)
 
   // Decoration collections for search highlights, markers, etc.
-  let searchDecorations: string[] = []
-  let markerDecorations: string[] = []
-  let highlightDecorations: string[] = []
+  let searchDecorations: Array<string> = []
+  let markerDecorations: Array<string> = []
+  let highlightDecorations: Array<string> = []
 
   onMount(async () => {
     // Configure Monaco loader
@@ -123,7 +119,7 @@ export function useMonacoEditor(
     setEditorInstance(ed)
 
     // Selection change handler
-    ed.onDidChangeCursorSelection((e) => {
+    ed.onDidChangeCursorSelection(() => {
       if (options.onSelectionChange) {
         const selection = ed.getSelection()
         if (selection && !selection.isEmpty()) {
@@ -183,10 +179,10 @@ export function useMonacoEditor(
         const monaco = monacoInstance()
         if (!ed || !monaco) return
 
-        const decorations: editor.IModelDeltaDecoration[] = []
+        const decorations: Array<monaco.editor.IModelDeltaDecoration> = []
 
         // Group matches by line
-        const matchesByLine = new Map<number, number[]>()
+        const matchesByLine = new Map<number, Array<number>>()
         matches.forEach((m, idx) => {
           const line = m.lineIndex + 1 // Monaco is 1-indexed
           if (!matchesByLine.has(line)) {
@@ -226,17 +222,19 @@ export function useMonacoEditor(
       const monaco = monacoInstance()
       if (!ed || !monaco) return
 
-      const decorations: editor.IModelDeltaDecoration[] = lines.map((line) => ({
-        range: new monaco.Range(line, 1, line, 1),
-        options: {
-          isWholeLine: true,
-          className: 'marker-line',
-          overviewRuler: {
-            color: '#3b82f6',
-            position: monaco.editor.OverviewRulerLane.Left,
+      const decorations: Array<monaco.editor.IModelDeltaDecoration> = lines.map(
+        (line) => ({
+          range: new monaco.Range(line, 1, line, 1),
+          options: {
+            isWholeLine: true,
+            className: 'marker-line',
+            overviewRuler: {
+              color: '#3b82f6',
+              position: monaco.editor.OverviewRulerLane.Left,
+            },
           },
-        },
-      }))
+        }),
+      )
 
       markerDecorations = ed.deltaDecorations(markerDecorations, decorations)
     }),
@@ -251,7 +249,7 @@ export function useMonacoEditor(
         const monaco = monacoInstance()
         if (!ed || !monaco || !content) return
 
-        const decorations: editor.IModelDeltaDecoration[] = []
+        const decorations: Array<monaco.editor.IModelDeltaDecoration> = []
         const lines = content.split('\n')
 
         rules.forEach((rule) => {
