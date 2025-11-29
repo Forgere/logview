@@ -136,3 +136,33 @@ code {
     @apply bg-background text-foreground;
   }
 }
+
+/* Hide Monaco Editor's find widget completely */
+.monaco-editor .find-widget {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Hide any Monaco find/replace widgets */
+.monaco-editor .find-replace-widget {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Hide Monaco editor overlays that might contain find functionality */
+.monaco-editor .overlayWidgets {
+  display: none !important;
+}
+
+/* Ensure our custom search is visible while Monaco's is hidden */
+.search-bar-container {
+  z-index: 1000;
+}

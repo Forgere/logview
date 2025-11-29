@@ -1,4 +1,4 @@
-import { Show, createEffect, createSignal, onMount } from 'solid-js'
+import { Show, batch, createEffect, createSignal, on, onMount } from 'solid-js'
 import { Bookmark } from 'lucide-solid'
 import type {
   HighlightRule,
@@ -21,14 +21,15 @@ interface LogViewerProps {
   lines: Array<string>
   viewSettings: ViewSettings
   searchOptions: SearchOptions
-  onSearchMatchesChanged: (count: number, current: number) => void
+  onSearchMatchesChanged?: (count: number, current: number) => void
   customHighlights?: Array<HighlightRule>
   markers: Array<LogMarker>
   onAddMarker: (range: MarkerRange, text: string, context: string) => void
-  onUserScroll?: (isAtBottom: boolean) => void
+  onUserScroll?: (isAtBottom: boolean, scrollTop?: number) => void
   onSelectionChange?: (
     selection: { text: string; range: any; line: string } | null,
   ) => void
+  onMonacoReady?: (monacoIntegration: any) => void
 }
 
 export function LogViewer(props: LogViewerProps) {
@@ -46,25 +47,39 @@ export function LogViewer(props: LogViewerProps) {
     text: string
   } | null>(null)
 
-  // Format content from lines
-  createEffect(() => {
-    setContent(props.lines.join('\n'))
-  })
+  // Optimize: Format content from lines with proper dependency tracking
+  createEffect(
+    on(
+      () => props.lines,
+      (lines) => {
+        setContent(lines.join('\n'))
+      },
+      { defer: true },
+    ),
+  )
 
-  // Update marker lines when markers change
-  createEffect(() => {
-    const lines = new Set<number>()
-    props.markers.forEach((marker) => {
-      for (
-        let i = marker.range.startLineNumber;
-        i <= marker.range.endLineNumber;
-        i++
-      ) {
-        lines.add(i)
-      }
-    })
-    setMarkerLines(Array.from(lines))
-  })
+  // Optimize: Update marker lines with batch updates
+  createEffect(
+    on(
+      () => props.markers,
+      (markers) => {
+        batch(() => {
+          const lines = new Set<number>()
+          markers.forEach((marker) => {
+            for (
+              let i = marker.range.startLineNumber;
+              i <= marker.range.endLineNumber;
+              i++
+            ) {
+              lines.add(i)
+            }
+          })
+          setMarkerLines(Array.from(lines))
+        })
+      },
+      { defer: true },
+    ),
+  )
 
   // Monaco editor setup
   const monacoAPI = useMonacoEditor(() => editorContainerRef, {
@@ -105,7 +120,7 @@ export function LogViewer(props: LogViewerProps) {
             // Create a position at the end of the selection range
             const position = new monaco.Position(
               selection.range.endLineNumber,
-              selection.range.endColumn
+              selection.range.endColumn,
             )
             const scrolledVisiblePos =
               editor.getScrolledVisiblePosition(position)
@@ -132,80 +147,114 @@ export function LogViewer(props: LogViewerProps) {
           const maxScroll =
             editor.getScrollHeight() - editor.getLayoutInfo().height
           const isAtBottom = maxScroll - scrollTop < 20
-          props.onUserScroll(isAtBottom)
+          props.onUserScroll(isAtBottom, scrollTop)
         }
       }
     },
   })
 
-  // Search functionality
-  createEffect(() => {
-    const { query, isRegex, isCaseSensitive, isWholeWord } = props.searchOptions
+  // Optimize: Search functionality with proper dependency tracking
+  createEffect(
+    on(
+      () =>
+        [
+          props.searchOptions.query,
+          props.searchOptions.isRegex,
+          props.searchOptions.isCaseSensitive,
+          props.searchOptions.isWholeWord,
+          content(),
+        ] as const,
+      ([query, isRegex, isCaseSensitive, isWholeWord]) => {
+        if (!query || !monacoAPI.editor()) {
+          batch(() => {
+            setSearchMatches([])
+            setCurrentMatchIndex(0)
+            props.onSearchMatchesChanged?.(0, -1)
+          })
+          return
+        }
 
-    if (!query || !monacoAPI.editor()) {
-      setSearchMatches([])
-      setCurrentMatchIndex(0)
-      props.onSearchMatchesChanged(0, -1)
-      return
-    }
+        const editor = monacoAPI.editor()!
+        const model = editor.getModel()
+        if (!model) return
 
-    const editor = monacoAPI.editor()!
-    const model = editor.getModel()
-    if (!model) return
+        try {
+          const matches = model.findMatches(
+            isWholeWord ? `/\\b${query}\\b/` : query,
+            false,
+            isWholeWord || isRegex,
+            isCaseSensitive,
+            isWholeWord ? null : '',
+            true,
+          )
 
-    try {
-      const matches = model.findMatches(
-        query,
-        false,
-        isRegex,
-        isCaseSensitive,
-        isWholeWord ? null : null,
-        true,
-      )
+          const searchMatchesList: Array<SearchMatch> = matches.map(
+            (match, index) => ({
+              lineIndex: match.range.startLineNumber - 1,
+              startColumn: match.range.startColumn - 1,
+              endColumn: match.range.endColumn - 1,
+              matchIndex: index,
+            }),
+          )
 
-      const searchMatchesList: Array<SearchMatch> = matches.map(
-        (match, index) => ({
-          lineIndex: match.range.startLineNumber - 1,
-          startColumn: match.range.startColumn - 1,
-          endColumn: match.range.endColumn - 1,
-          matchIndex: index,
-        }),
-      )
+          batch(() => {
+            setSearchMatches(searchMatchesList)
+            setCurrentMatchIndex(searchMatchesList.length > 0 ? 0 : -1)
+            props.onSearchMatchesChanged?.(
+              searchMatchesList.length,
+              searchMatchesList.length > 0 ? 0 : -1,
+            )
+          })
 
-      setSearchMatches(searchMatchesList)
-      setCurrentMatchIndex(searchMatchesList.length > 0 ? 0 : -1)
-      props.onSearchMatchesChanged(
-        searchMatchesList.length,
-        searchMatchesList.length > 0 ? 0 : -1,
-      )
+          // Highlight first match
+          if (searchMatchesList.length > 0) {
+            const firstMatch = matches[0]
+            editor.revealRangeInCenter(firstMatch.range)
+          }
+        } catch (error) {
+          console.error('Search error:', error)
+          batch(() => {
+            setSearchMatches([])
+            setCurrentMatchIndex(0)
+            props.onSearchMatchesChanged?.(0, -1)
+          })
+        }
+      },
+      { defer: true },
+    ),
+  )
 
-      // Highlight first match
-      if (searchMatchesList.length > 0) {
-        const firstMatch = matches[0]
-        editor.revealRangeInCenter(firstMatch.range)
-      }
-    } catch (error) {
-      console.error('Search error:', error)
-      setSearchMatches([])
-      setCurrentMatchIndex(0)
-      props.onSearchMatchesChanged(0, -1)
-    }
-  })
-
-  // Navigation methods
+  // Optimize: Navigation methods with proper match highlighting
   const navigateNextMatch = () => {
     const matches = searchMatches()
     if (matches.length === 0) return
 
     const nextIndex = (currentMatchIndex() + 1) % matches.length
-    setCurrentMatchIndex(nextIndex)
-    props.onSearchMatchesChanged(matches.length, nextIndex)
+
+    batch(() => {
+      setCurrentMatchIndex(nextIndex)
+      props.onSearchMatchesChanged(matches.length, nextIndex)
+    })
 
     const editor = monacoAPI.editor()
-    if (editor) {
-      const match = matches[nextIndex]
-      editor.revealLineInCenter(match.lineIndex + 1)
+    if (!editor) return
+
+    const match = matches[nextIndex]
+    const model = editor.getModel()
+    if (!model) return
+
+    // Create proper range for the match
+    const matchRange = {
+      startLineNumber: match.lineIndex + 1,
+      startColumn: (match.startColumn || 0) + 1,
+      endLineNumber: match.lineIndex + 1,
+      endColumn: (match.endColumn || 0) + 1,
     }
+
+    // Reveal the match in center and select it
+    editor.revealRangeInCenter(matchRange)
+    editor.setSelection(matchRange)
+    editor.focus()
   }
 
   const navigatePrevMatch = () => {
@@ -214,14 +263,31 @@ export function LogViewer(props: LogViewerProps) {
 
     const prevIndex =
       (currentMatchIndex() - 1 + matches.length) % matches.length
-    setCurrentMatchIndex(prevIndex)
-    props.onSearchMatchesChanged(matches.length, prevIndex)
+
+    batch(() => {
+      setCurrentMatchIndex(prevIndex)
+      props.onSearchMatchesChanged(matches.length, prevIndex)
+    })
 
     const editor = monacoAPI.editor()
-    if (editor) {
-      const match = matches[prevIndex]
-      editor.revealLineInCenter(match.lineIndex + 1)
+    if (!editor) return
+
+    const match = matches[prevIndex]
+    const model = editor.getModel()
+    if (!model) return
+
+    // Create proper range for the match
+    const matchRange = {
+      startLineNumber: match.lineIndex + 1,
+      startColumn: (match.startColumn || 0) + 1,
+      endLineNumber: match.lineIndex + 1,
+      endColumn: (match.endColumn || 0) + 1,
     }
+
+    // Reveal the match in center and select it
+    editor.revealRangeInCenter(matchRange)
+    editor.setSelection(matchRange)
+    editor.focus()
   }
 
   const scrollToLine = (line: number) => {
@@ -275,17 +341,16 @@ export function LogViewer(props: LogViewerProps) {
     }
   }
 
-  // Expose methods for parent components
+  // Expose methods for parent components (no longer using global API)
   onMount(() => {
-    // Make methods available to parent via ref or callback
-    if (typeof (window as any).logViewerAPI === 'object') {
-      ;(window as any).logViewerAPI = {
-        scrollToLine,
-        scrollToRange,
-        navigateNextMatch,
-        navigatePrevMatch,
-        getEditor: () => monacoAPI.editor(),
+    // Notify parent when Monaco is ready with integration methods
+    if (props.onMonacoReady) {
+      const monacoIntegration = {
+        findNext: monacoAPI.findNext,
+        findPrevious: monacoAPI.findPrevious,
+        scrollToLine: monacoAPI.scrollToLine,
       }
+      props.onMonacoReady(monacoIntegration)
     }
   })
 

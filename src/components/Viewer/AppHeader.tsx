@@ -1,9 +1,9 @@
-import { Show } from 'solid-js'
+import { ErrorBoundary, Show, batch, createMemo } from 'solid-js'
 import {
-  ArrowDownCircle,
-  CheckCircle2,
+  CircleArrowDown,
+  CircleCheck,
+  CircleQuestionMark,
   Eye,
-  HelpCircle,
   MousePointer2,
   Search,
   Settings,
@@ -11,7 +11,6 @@ import {
   Upload,
   X,
 } from 'lucide-solid'
-import { FileOperationsErrorBoundary } from '~/components/ErrorBoundary'
 
 export type ViewMode = 'follow' | 'browse'
 
@@ -39,8 +38,11 @@ export function AppHeader(props: AppHeaderProps) {
     const target = e.target as HTMLInputElement
     const files = target.files
     if (files?.[0]) {
-      props.onFileSelect(files[0])
-      target.value = ''
+      // Batch file selection with state reset
+      batch(() => {
+        props.onFileSelect(files[0])
+        target.value = ''
+      })
     }
   }
 
@@ -52,13 +54,13 @@ export function AppHeader(props: AppHeaderProps) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  // Determine the consolidated status to display on the right
-  const getStatusDisplay = () => {
+  // Optimize: Memoize expensive status computation
+  const status = createMemo(() => {
     if (props.watchPattern) {
       return {
         label: 'WATCHING',
         subLabel: `: ${props.watchPattern}`,
-        icon: <Eye size={14} class="animate-pulse" />,
+        icon: () => <Eye size={14} class="animate-pulse" />,
         color: 'text-amber-400',
         borderColor: 'border-amber-900/50',
       }
@@ -68,7 +70,7 @@ export function AppHeader(props: AppHeaderProps) {
       return {
         label: 'FINISHED',
         subLabel: '',
-        icon: <CheckCircle2 size={14} />,
+        icon: () => <CircleCheck size={14} />,
         color: 'text-gray-400',
         borderColor: 'border-gray-700',
       }
@@ -78,7 +80,7 @@ export function AppHeader(props: AppHeaderProps) {
       return {
         label: 'FOLLOWING',
         subLabel: '(Loading...)',
-        icon: <ArrowDownCircle size={14} class="animate-bounce" />,
+        icon: () => <CircleArrowDown size={14} class="animate-bounce" />,
         color: 'text-green-400',
         borderColor: 'border-green-900/50',
       }
@@ -88,16 +90,22 @@ export function AppHeader(props: AppHeaderProps) {
     return {
       label: 'BROWSING',
       subLabel: '(Loading...)',
-      icon: <MousePointer2 size={14} />,
+      icon: () => <MousePointer2 size={14} />,
       color: 'text-yellow-400',
       borderColor: 'border-yellow-900/50',
     }
-  }
+  })
 
-  const status = () => getStatusDisplay()
+  // Optimize: Memoize file size formatting
+  const formattedFileSize = createMemo(() => formatBytes(props.fileSize))
+
+  // Optimize: Memoize file metadata display
+  const showFileMetadata = createMemo(() => Boolean(props.fileName))
 
   return (
-    <FileOperationsErrorBoundary>
+    <ErrorBoundary
+      fallback={(err) => <div>Error in AppHeader, {err.message}</div>}
+    >
       <header class="flex-none bg-[#1e1e1e] border-b border-[#333] relative select-none z-20">
         {/* Progress Line */}
         <Show when={props.isStreaming && props.progress < 100}>
@@ -186,7 +194,7 @@ export function AppHeader(props: AppHeaderProps) {
               <div
                 class={`flex items-center gap-2 font-bold ${status().color} transition-colors`}
               >
-                {status().icon}
+                {status().icon()}
                 <span>{status().label}</span>
                 <span class="font-normal text-gray-500">
                   {status().subLabel}
@@ -205,7 +213,7 @@ export function AppHeader(props: AppHeaderProps) {
               </div>
 
               {/* File Metadata */}
-              <Show when={props.fileName}>
+              <Show when={showFileMetadata()}>
                 <div class="flex flex-col items-end leading-tight border-l border-[#333] pl-6 sm:flex">
                   <span
                     class="text-gray-300 max-w-[200px] truncate"
@@ -214,13 +222,13 @@ export function AppHeader(props: AppHeaderProps) {
                     {props.fileName}
                   </span>
                   <span class="text-[10px] text-gray-600">
-                    {formatBytes(props.fileSize)}
+                    {formattedFileSize()}
                   </span>
                 </div>
               </Show>
 
               {/* Line Count */}
-              <div class="min-w-[80px] text-right font-mono">
+              <div class="min-w-20 text-right font-mono">
                 {props.totalLines.toLocaleString()} lines
               </div>
             </div>
@@ -237,7 +245,7 @@ export function AppHeader(props: AppHeaderProps) {
               class="text-gray-500 hover:text-gray-300 transition-colors"
               title="Keyboard Shortcuts"
             >
-              <HelpCircle size={18} />
+              <CircleQuestionMark size={18} />
             </button>
           </div>
         </div>
@@ -251,7 +259,7 @@ export function AppHeader(props: AppHeaderProps) {
           class="hidden"
         />
       </header>
-    </FileOperationsErrorBoundary>
+    </ErrorBoundary>
   )
 }
 
@@ -284,7 +292,7 @@ export function CompactHeader(
           class="text-gray-500 hover:text-gray-300 transition-colors"
           title="Keyboard Shortcuts"
         >
-          <HelpCircle size={18} />
+          <CircleQuestionMark size={18} />
         </button>
       </div>
     </header>

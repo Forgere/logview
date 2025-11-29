@@ -33,7 +33,6 @@ export class FileStreamer {
           break
         }
 
-         
         while (this.isPaused) {
           await new Promise((r) => setTimeout(r, 100))
           if (signal.aborted) break

@@ -17,6 +17,8 @@ export interface LogLine {
 export interface SearchMatch {
   lineIndex: number
   matchIndex: number
+  startColumn?: number
+  endColumn?: number
 }
 
 // Monaco editor range for markers

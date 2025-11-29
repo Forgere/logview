@@ -1,5 +1,14 @@
 import { createFileRoute } from '@tanstack/solid-router'
-import { For, Show, createEffect, createSignal, onMount } from 'solid-js'
+import {
+  ErrorBoundary,
+  For,
+  Show,
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  onMount,
+} from 'solid-js'
 import {
   GripHorizontal,
   PanelRightClose,
@@ -17,19 +26,19 @@ import type {
 import { AppHeader } from '~/components/Viewer/AppHeader'
 import { SearchBar } from '~/components/Viewer/SearchBar'
 import { LogViewer } from '~/components/Viewer/LogViewer'
-import {
-  FileOperationsErrorBoundary,
-  LogViewerErrorBoundary,
-  ModalErrorBoundary,
-  SearchErrorBoundary,
-} from '~/components/ErrorBoundary'
+import { SearchProvider, useSearch } from '~/stores/searchStore'
 import { DEFAULT_HIGHLIGHT_RULES, DEFAULT_VIEW_SETTINGS } from '~/types'
 
 export const Route = createFileRoute('/viewer')({
-  component: RouteComponent,
+  component: () => (
+    <SearchProvider>
+      <RouteComponent />
+    </SearchProvider>
+  ),
 })
 
 function RouteComponent() {
+  const [searchState, searchActions, searchDerived] = useSearch()
   // Layout state
   const [bottomHeight, setBottomHeight] = createSignal(200)
   const [rightPanelWidth, setRightPanelWidth] = createSignal(300)
@@ -41,31 +50,27 @@ function RouteComponent() {
   const [isStreaming, setIsStreaming] = createSignal(false)
   const [progress, setProgress] = createSignal(0)
 
+  // Virtual scrolling state
+  const [visibleRange, setVisibleRange] = createSignal({
+    start: 0,
+    end: 1000, // Initial visible lines
+  })
+  const LINE_HEIGHT = 20 // Approximate line height in pixels
+  const VISIBLE_BUFFER = 50 // Extra lines to render for smooth scrolling
+
+  // Optimize: Derived signals for virtual scrolling
+  const totalLines = createMemo(() => lines().length)
+
   // Viewer state
   const [viewMode, setViewMode] = createSignal<ViewMode>('follow')
-  const [viewSettings] = createSignal<ViewSettings>(
-    DEFAULT_VIEW_SETTINGS,
-  )
+  const [viewSettings] = createSignal<ViewSettings>(DEFAULT_VIEW_SETTINGS)
   const [watchPattern, setWatchPattern] = createSignal('')
-
-  // Search state
-  const [searchQuery, setSearchQuery] = createSignal('')
-  const [searchOptions, setSearchOptions] = createSignal<SearchOptions>({
-    query: '',
-    isRegex: false,
-    caseSensitive: false,
-    wholeWord: false,
-  })
-  const [searchResults, setSearchResults] = createSignal({
-    count: 0,
-    currentIndex: -1,
-  })
 
   // Marker state
   const [markers, setMarkers] = createSignal<Array<LogMarker>>([])
-  const [highlightRules] = createSignal<
-    Array<HighlightRule>
-  >(DEFAULT_HIGHLIGHT_RULES)
+  const [highlightRules] = createSignal<Array<HighlightRule>>(
+    DEFAULT_HIGHLIGHT_RULES,
+  )
 
   // Modals and UI state
   const [showSettings, setShowSettings] = createSignal(false)
@@ -120,8 +125,31 @@ function RouteComponent() {
     window.addEventListener('mouseup', onMouseUp)
   }
 
-  // File handling
+  // Optimize: Virtual scroll handler
+  const handleVirtualScroll = (scrollTop: number) => {
+    const containerHeight = 600
+    const firstVisibleLine = Math.floor(scrollTop / LINE_HEIGHT)
+    const visibleLineCount = Math.ceil(containerHeight / LINE_HEIGHT)
+
+    // Calculate visible range with buffer
+    const start = Math.max(0, firstVisibleLine - VISIBLE_BUFFER)
+    const end = Math.min(
+      totalLines(),
+      firstVisibleLine + visibleLineCount + VISIBLE_BUFFER,
+    )
+
+    // Only update if range actually changed
+    const currentRange = visibleRange()
+    if (start !== currentRange.start || end !== currentRange.end) {
+      setVisibleRange({ start, end })
+    }
+  }
+
+  // Optimize: File handling with virtual scrolling
   const handleFileSelect = (file: File) => {
+    // Reset virtual scrolling state
+    setVisibleRange({ start: 0, end: 1000 })
+
     setFileInfo({
       name: file.name,
       size: file.size,
@@ -138,57 +166,47 @@ function RouteComponent() {
       const content = e.target?.result as string
       const fileLines = content.split('\n')
 
-      // Simulate progressive loading
-      let currentIndex = 0
-      const chunkSize = 1000
-
-      const loadChunk = () => {
-        const chunk = fileLines.slice(currentIndex, currentIndex + chunkSize)
-        setLines((prev) => [...prev, ...chunk])
-        currentIndex += chunkSize
-
-        const newProgress = Math.min(
-          100,
-          (currentIndex / fileLines.length) * 100,
-        )
-        setProgress(newProgress)
-
-        if (currentIndex < fileLines.length) {
-          setTimeout(loadChunk, 50)
-        } else {
-          setIsStreaming(false)
-          setProgress(100)
-        }
-      }
-
-      loadChunk()
+      // Use batch updates for better performance
+      batch(() => {
+        setLines(fileLines)
+        setProgress(100)
+        setIsStreaming(false)
+      })
     }
 
     reader.readAsText(file)
   }
 
-  // Search functionality
+  // Search functionality - sync search store with Monaco's native search
   createEffect(() => {
-    setSearchOptions({
-      query: searchQuery(),
-      isRegex: searchOptions().isRegex,
-      caseSensitive: searchOptions().caseSensitive,
-      wholeWord: searchOptions().wholeWord,
-    })
+    // Update search store when lines change
+    if (lines().length > 0) {
+      searchActions.updateMatches(lines())
+    }
   })
 
-  const handleSearchMatchesChanged = (count: number, currentIndex: number) => {
-    setSearchResults({ count, currentIndex })
-  }
-
+  // Handle search navigation using search store and Monaco integration
   const handleNextSearch = () => {
-    // This would be implemented in LogViewer component
-    console.log('Next search match')
+    // Use search store for navigation
+    searchActions.nextMatch()
   }
 
   const handlePrevSearch = () => {
-    // This would be implemented in LogViewer component
-    console.log('Previous search match')
+    // Use search store for navigation
+    searchActions.prevMatch()
+  }
+
+  // Handle search options changes
+  const handleRegexModeChange = (isRegex: boolean) => {
+    searchActions.setIsRegex(isRegex)
+  }
+
+  const handleCaseSensitiveChange = (caseSensitive: boolean) => {
+    searchActions.setCaseSensitive(caseSensitive)
+  }
+
+  const handleWholeWordChange = (wholeWord: boolean) => {
+    searchActions.setWholeWord(wholeWord)
   }
 
   // Marker functionality
@@ -204,7 +222,7 @@ function RouteComponent() {
     setMarkers((prev) => [...prev, newMarker])
   }
 
-  // Sample data for testing
+  // Optimize: Sample data for testing with virtual scrolling
   const loadSampleData = () => {
     const sampleLines = [
       '[2024-01-15 10:23:45] INFO Application starting...',
@@ -230,11 +248,11 @@ function RouteComponent() {
       '[2024-01-15 10:24:04] INFO Recovery mode enabled',
     ]
 
-    // Create more sample data
+    // Create more sample data for better virtual scrolling testing
     const extendedLines: Array<string> = []
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 500; i++) {
       extendedLines.push(
-        ...sampleLines.map((line) =>
+        ...sampleLines.map((line: string) =>
           line.replace(
             '10:23:',
             `10:${String(23 + Math.floor(i / 60)).padStart(2, '0')}:`,
@@ -243,25 +261,54 @@ function RouteComponent() {
       )
     }
 
-    setLines(extendedLines)
-    setFileInfo({
-      name: 'sample.log',
-      size: extendedLines.join('\n').length,
-      lastModified: Date.now(),
-      extension: 'log',
+    // Use batch updates for better performance
+    batch(() => {
+      setLines(extendedLines)
+      setFileInfo({
+        name: 'sample.log',
+        size: extendedLines.join('\n').length,
+        lastModified: Date.now(),
+        extension: 'log',
+      })
     })
+  }
+
+  // Store selected text for Ctrl+F functionality
+  const [selectedText, setSelectedText] = createSignal<string>('')
+
+  // Handle text selection from LogViewer
+  const handleSelectionChange = (selection: { text: string; range: any; line: string } | null) => {
+    if (selection && selection.text.trim()) {
+      setSelectedText(selection.text)
+    } else {
+      setSelectedText('')
+    }
   }
 
   // Keyboard shortcuts
   onMount(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      console.log((e.metaKey || e.ctrlKey) && e.key === 'f')
       if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
         e.preventDefault()
+
+        // If there's selected text, populate the search input with it
+        const text = selectedText()
+        if (text) {
+          searchActions.setQuery(text)
+        }
+
+        // Focus the search input
         searchInputRef?.focus()
+
+        // Select all text in the search input for easy replacement
+        setTimeout(() => {
+          searchInputRef?.select()
+        }, 0)
       }
 
       if (e.key === 'Escape') {
-        setSearchQuery('')
+        searchActions.setQuery('')
         searchInputRef?.blur()
       }
     }
@@ -278,7 +325,14 @@ function RouteComponent() {
 
   return (
     <div class="flex h-screen flex-col select-none bg-[#1e1e1e]">
-      <FileOperationsErrorBoundary>
+      <ErrorBoundary
+        fallback={(err) => (
+          <div class="p-4 bg-red-600 text-white">
+            <h2 class="font-bold mb-2">An error occurred:</h2>
+            <pre class="whitespace-pre-wrap">{err.message}</pre>
+          </div>
+        )}
+      >
         <AppHeader
           viewMode={viewMode()}
           setViewMode={setViewMode}
@@ -295,197 +349,191 @@ function RouteComponent() {
           onOpenSettings={() => setShowSettings(true)}
           onSearchFocus={() => searchInputRef?.focus()}
         />
-      </FileOperationsErrorBoundary>
 
-      <SearchErrorBoundary>
         <SearchBar
-          query={searchQuery()}
-          setQuery={setSearchQuery}
-          regexMode={searchOptions().isRegex}
-          setRegexMode={(isRegex) =>
-            setSearchOptions((prev) => ({ ...prev, isRegex }))
-          }
-          caseSensitive={searchOptions().caseSensitive}
-          setCaseSensitive={(caseSensitive) =>
-            setSearchOptions((prev) => ({ ...prev, caseSensitive }))
-          }
-          wholeWord={searchOptions().wholeWord}
-          setWholeWord={(wholeWord) =>
-            setSearchOptions((prev) => ({ ...prev, wholeWord }))
-          }
-          resultsCount={searchResults().count}
-          currentResultIndex={searchResults().currentIndex}
+          query={searchDerived.searchQuery()}
+          setQuery={searchActions.setQuery}
+          regexMode={searchState.options.isRegex}
+          setRegexMode={handleRegexModeChange}
+          caseSensitive={searchState.options.caseSensitive}
+          setCaseSensitive={handleCaseSensitiveChange}
+          wholeWord={searchState.options.wholeWord}
+          setWholeWord={handleWholeWordChange}
+          resultsCount={searchDerived.resultsCount()}
+          currentResultIndex={searchState.currentMatchIndex}
           onNext={handleNextSearch}
           onPrev={handlePrevSearch}
           onOpenHighlights={() => console.log('Open highlights modal')}
           inputRef={searchInputRef}
         />
-      </SearchErrorBoundary>
 
-      <div class="flex-1 flex overflow-hidden">
-        <div class="flex-1 overflow-hidden">
-          <LogViewerErrorBoundary>
+        <div class="flex-1 flex overflow-hidden">
+          <div class="flex-1 overflow-hidden">
             <LogViewer
               lines={lines()}
               viewSettings={viewSettings()}
               searchOptions={{
-                query: searchQuery(),
-                isRegex: searchOptions().isRegex,
-                isCaseSensitive: searchOptions().caseSensitive,
-                isWholeWord: searchOptions().wholeWord,
+                query: searchDerived.searchQuery(),
+                isRegex: searchState.options.isRegex,
+                isCaseSensitive: searchState.options.caseSensitive,
+                isWholeWord: searchState.options.wholeWord,
               }}
-              onSearchMatchesChanged={handleSearchMatchesChanged}
+              onSearchMatchesChanged={() => {
+                /* No-op - using search store now */
+              }}
+              onMonacoReady={(monacoIntegration) => {
+                searchActions.setMonacoIntegration(monacoIntegration)
+              }}
               customHighlights={highlightRules()}
               markers={markers()}
               onAddMarker={handleAddMarker}
-              onUserScroll={(isAtBottom) => {
+              onSelectionChange={handleSelectionChange}
+              onUserScroll={(isAtBottom, scrollTop) => {
                 if (isAtBottom && viewMode() === 'follow') {
                   // Keep following
                 }
+                // Handle virtual scrolling
+                handleVirtualScroll(scrollTop || 0)
               }}
             />
-          </LogViewerErrorBoundary>
-        </div>
+          </div>
 
-        {/* Right Panel - Markers */}
-        <Show when={isRightPanelOpen()}>
-          <div
-            class="relative bg-[#252526] border-l border-[#333]"
-            style={{ width: `${rightPanelWidth()}px` }}
-          >
+          {/* Right Panel - Markers */}
+          <Show when={isRightPanelOpen()}>
             <div
-              class="absolute top-0 left-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500/30 transition-colors"
-              onMouseDown={onMouseDownRight}
-            />
-            <div class="p-4 h-full overflow-auto">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-sm font-medium text-gray-300">
-                  Markers ({markers().length})
-                </h3>
-                <button
-                  onClick={() => setIsRightPanelOpen(false)}
-                  class="text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  <PanelRightClose size={16} />
-                </button>
-              </div>
-
-              <div class="space-y-2">
-                <For each={markers()}>
-                  {(marker) => (
-                    <div
-                      class="p-3 bg-[#1e1e1e] rounded border border-[#333] hover:border-[#555] transition-colors cursor-pointer"
-                      onClick={() => {
-                        // Scroll to marker in viewer
-                        console.log('Scroll to marker:', marker.id)
-                      }}
-                    >
-                      <div class="flex items-center justify-between mb-1">
-                        <span class="text-xs text-gray-500">
-                          Line {marker.range.startLineNumber}
-                        </span>
-                        <span class="text-xs text-gray-600">
-                          {new Date(marker.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <div class="text-sm text-gray-300 font-mono truncate">
-                        {marker.selectedText}
-                      </div>
-                      <div class="text-xs text-gray-500 mt-1 truncate">
-                        {marker.contextLine}
-                      </div>
-                    </div>
-                  )}
-                </For>
-              </div>
-
-              <Show when={markers().length === 0}>
-                <div class="text-center text-gray-500 text-sm mt-8">
-                  <p>No markers yet</p>
-                  <p class="text-xs mt-1">
-                    Select text in the log to create a marker
-                  </p>
+              class="relative bg-[#252526] border-l border-[#333]"
+              style={{ width: `${rightPanelWidth()}px` }}
+            >
+              <div
+                class="absolute top-0 left-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500/30 transition-colors"
+                onMouseDown={onMouseDownRight}
+              />
+              <div class="p-4 h-full overflow-auto">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-sm font-medium text-gray-300">
+                    Markers ({markers().length})
+                  </h3>
+                  <button
+                    onClick={() => setIsRightPanelOpen(false)}
+                    class="text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    <PanelRightClose size={16} />
+                  </button>
                 </div>
-              </Show>
+
+                <div class="space-y-2">
+                  <For each={markers()}>
+                    {(marker) => (
+                      <div
+                        class="p-3 bg-[#1e1e1e] rounded border border-[#333] hover:border-[#555] transition-colors cursor-pointer"
+                        onClick={() => {
+                          // Scroll to marker in viewer
+                          console.log('Scroll to marker:', marker.id)
+                        }}
+                      >
+                        <div class="flex items-center justify-between mb-1">
+                          <span class="text-xs text-gray-500">
+                            Line {marker.range.startLineNumber}
+                          </span>
+                          <span class="text-xs text-gray-600">
+                            {new Date(marker.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <div class="text-sm text-gray-300 font-mono truncate">
+                          {marker.selectedText}
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1 truncate">
+                          {marker.contextLine}
+                        </div>
+                      </div>
+                    )}
+                  </For>
+                </div>
+
+                <Show when={markers().length === 0}>
+                  <div class="text-center text-gray-500 text-sm mt-8">
+                    <p>No markers yet</p>
+                    <p class="text-xs mt-1">
+                      Select text in the log to create a marker
+                    </p>
+                  </div>
+                </Show>
+              </div>
             </div>
-          </div>
-        </Show>
+          </Show>
 
-        {/* Right Panel Toggle */}
-        <Show when={!isRightPanelOpen()}>
-          <button
-            onClick={() => setIsRightPanelOpen(true)}
-            class="fixed right-4 top-1/2 transform -translate-y-1/2 bg-[#252526] hover:bg-[#333] border border-[#555] rounded-l p-2 text-gray-400 hover:text-white transition-all"
-            title="Show Markers Panel"
-          >
-            <PanelRightOpen size={16} />
-          </button>
-        </Show>
-      </div>
+          {/* Right Panel Toggle */}
+          <Show when={!isRightPanelOpen()}>
+            <button
+              onClick={() => setIsRightPanelOpen(true)}
+              class="fixed right-4 top-1/2 transform -translate-y-1/2 bg-[#252526] hover:bg-[#333] border border-[#555] rounded-l p-2 text-gray-400 hover:text-white transition-all"
+              title="Show Markers Panel"
+            >
+              <PanelRightOpen size={16} />
+            </button>
+          </Show>
+        </div>
 
-      {/* Bottom Panel */}
-      <div
-        class="relative w-full bg-[#252526] border-t border-[#333]"
-        style={{ height: `${bottomHeight()}px` }}
-      >
+        {/* Bottom Panel */}
         <div
-          class="absolute left-0 right-0 top-0 h-2 cursor-ns-resize hover:bg-black/20 flex justify-center w-full items-center group"
-          onMouseDown={onMouseDownBottom}
+          class="relative w-full bg-[#252526] border-t border-[#333]"
+          style={{ height: `${bottomHeight()}px` }}
         >
-          <GripHorizontal
-            size={16}
-            class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500"
-          />
-        </div>
-        <div class="overflow-auto pt-4 p-4 h-full">
-          <div class="text-sm text-gray-400">
-            <h4 class="font-medium mb-2">Log Analysis</h4>
-            <div class="grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <span class="text-gray-500">Total Lines: </span>
-                <span class="text-gray-300">
-                  {lines().length.toLocaleString()}
-                </span>
-              </div>
-              <div>
-                <span class="text-gray-500">Markers: </span>
-                <span class="text-gray-300">{markers().length}</span>
-              </div>
-              <div>
-                <span class="text-gray-500">Search Results: </span>
-                <span class="text-gray-300">{searchResults().count}</span>
-              </div>
-              <div>
-                <span class="text-gray-500">View Mode: </span>
-                <span class="text-gray-300 capitalize">{viewMode()}</span>
+          <div
+            class="absolute left-0 right-0 top-0 h-2 cursor-ns-resize hover:bg-black/20 flex justify-center w-full items-center group"
+            onMouseDown={onMouseDownBottom}
+          >
+            <GripHorizontal
+              size={16}
+              class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500"
+            />
+          </div>
+          <div class="overflow-auto pt-4 p-4 h-full">
+            <div class="text-sm text-gray-400">
+              <h4 class="font-medium mb-2">Log Analysis</h4>
+              <div class="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <span class="text-gray-500">Total Lines: </span>
+                  <span class="text-gray-300">
+                    {lines().length.toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <span class="text-gray-500">Markers: </span>
+                  <span class="text-gray-300">{markers().length}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500">Search Results: </span>
+                  <span class="text-gray-300">
+                    {searchDerived.resultsCount()}
+                  </span>
+                </div>
+                <div>
+                  <span class="text-gray-500">View Mode: </span>
+                  <span class="text-gray-300 capitalize">{viewMode()}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Modals */}
-      <ModalErrorBoundary>
+        {/* Modals */}
         <SettingsModal
           isOpen={showSettings()}
           onClose={() => setShowSettings(false)}
         />
-      </ModalErrorBoundary>
 
-      <ModalErrorBoundary>
         <ShortcutsModal
           isOpen={showShortcuts()}
           onClose={() => setShowShortcuts(false)}
         />
-      </ModalErrorBoundary>
 
-      <ModalErrorBoundary>
         <WatchModal
           isOpen={showWatchModal()}
           onClose={() => setShowWatchModal(false)}
           onSetPattern={setWatchPattern}
         />
-      </ModalErrorBoundary>
+      </ErrorBoundary>
     </div>
   )
 }

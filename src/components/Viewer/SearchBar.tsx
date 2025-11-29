@@ -1,4 +1,4 @@
-import { Show, onMount } from 'solid-js'
+import { Show, createMemo, onMount } from 'solid-js'
 import { ArrowDown, ArrowUp, Highlighter, Search } from 'lucide-solid'
 import { SearchErrorBoundary } from '~/components/ErrorBoundary'
 
@@ -82,6 +82,19 @@ interface SearchBarProps {
 export function SearchBar(props: SearchBarProps) {
   let inputRef: HTMLInputElement | undefined
 
+  // Optimize: Use reactive computation for search result display
+  const searchResultText = createMemo(() => {
+    const count = props.resultsCount
+    const index = props.currentResultIndex
+    return count === 0 ? '0/0' : `${index + 1}/${count}`
+  })
+
+  // Optimize: Memoize button states to prevent unnecessary re-renders
+  const navigationDisabled = createMemo(() => props.resultsCount === 0)
+
+  // Optimize: Create derived signal for search state
+  const hasSearchQuery = createMemo(() => Boolean(props.query))
+
   // Focus input when component mounts
   onMount(() => {
     if (props.inputRef) {
@@ -94,6 +107,40 @@ export function SearchBar(props: SearchBarProps) {
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.shiftKey ? props.onPrev() : props.onNext()
+    }
+  }
+
+  // Sync search options with Monaco when they change
+  const handleRegexToggle = () => {
+    const newValue = !props.regexMode
+    props.setRegexMode(newValue)
+    // Trigger search update with new regex setting
+    if (props.query) {
+      setTimeout(() => {
+        props.onNext()
+      }, 50)
+    }
+  }
+
+  const handleCaseToggle = () => {
+    const newValue = !props.caseSensitive
+    props.setCaseSensitive(newValue)
+    // Trigger search update with new case setting
+    if (props.query) {
+      setTimeout(() => {
+        props.onNext()
+      }, 50)
+    }
+  }
+
+  const handleWholeWordToggle = () => {
+    const newValue = !props.wholeWord
+    props.setWholeWord(newValue)
+    // Trigger search update with new whole word setting
+    if (props.query) {
+      setTimeout(() => {
+        props.onNext()
+      }, 50)
     }
   }
 
@@ -110,7 +157,7 @@ export function SearchBar(props: SearchBarProps) {
             value={props.query}
             onInput={(e) => props.setQuery(e.currentTarget.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search logs (Cmd+F)..."
+            placeholder="Search logs (Ctrl+F)..."
             class="w-full h-8 bg-[#1e1e1e] border border-[#3e3e3e] rounded pl-8 pr-[160px] text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-200 placeholder-gray-500 transition-colors"
           />
           <div class="absolute right-1 flex items-center gap-0.5 my-1 mr-1">
@@ -125,21 +172,21 @@ export function SearchBar(props: SearchBarProps) {
             <div class="w-[1px] h-4 bg-[#333] mx-1" />
 
             <button
-              onClick={() => props.setCaseSensitive(!props.caseSensitive)}
+              onClick={handleCaseToggle}
               class={`p-1 rounded hover:bg-[#333] transition-colors ${props.caseSensitive ? 'text-blue-400 bg-[#3a3a3a]' : 'text-gray-500'}`}
               title="Match Case (Alt+C)"
             >
               <CaseIcon class="w-4 h-4" />
             </button>
             <button
-              onClick={() => props.setWholeWord(!props.wholeWord)}
+              onClick={handleWholeWordToggle}
               class={`p-1 rounded hover:bg-[#333] transition-colors ${props.wholeWord ? 'text-blue-400 bg-[#3a3a3a]' : 'text-gray-500'}`}
               title="Match Whole Word (Alt+W)"
             >
               <WholeWordIcon class="w-4 h-4" />
             </button>
             <button
-              onClick={() => props.setRegexMode(!props.regexMode)}
+              onClick={handleRegexToggle}
               class={`p-1 rounded hover:bg-[#333] transition-colors ${props.regexMode ? 'text-blue-400 bg-[#3a3a3a]' : 'text-gray-500'}`}
               title="Use Regular Expression (Alt+R)"
             >
@@ -148,17 +195,15 @@ export function SearchBar(props: SearchBarProps) {
           </div>
         </div>
 
-        <Show when={props.query}>
+        <Show when={hasSearchQuery()}>
           <div class="flex items-center gap-2 text-sm animate-in fade-in duration-200">
             <span class="text-gray-400 min-w-[60px] text-center font-mono text-xs">
-              {props.resultsCount === 0
-                ? '0/0'
-                : `${props.currentResultIndex + 1}/${props.resultsCount}`}
+              {searchResultText()}
             </span>
             <div class="flex bg-[#333] rounded border border-[#444]">
               <button
                 onClick={props.onPrev}
-                disabled={props.resultsCount === 0}
+                disabled={navigationDisabled()}
                 class="p-1 hover:bg-[#444] text-gray-300 disabled:opacity-30 transition-colors"
               >
                 <ArrowUp size={16} />
@@ -166,7 +211,7 @@ export function SearchBar(props: SearchBarProps) {
               <div class="w-[1px] bg-[#444]" />
               <button
                 onClick={props.onNext}
-                disabled={props.resultsCount === 0}
+                disabled={navigationDisabled()}
                 class="p-1 hover:bg-[#444] text-gray-300 disabled:opacity-30 transition-colors"
               >
                 <ArrowDown size={16} />

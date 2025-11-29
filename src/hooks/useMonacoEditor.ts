@@ -27,6 +27,15 @@ export interface MonacoEditorAPI {
   scrollToLine: (line: number, center?: boolean) => void
   revealLine: (line: number) => void
   getVisibleRange: () => monaco.Range | null
+  findNext: (
+    query: string,
+    options?: monaco.editor.IFindControllerOptions,
+  ) => boolean
+  findPrevious: (
+    query: string,
+    options?: monaco.editor.IFindControllerOptions,
+  ) => boolean
+  getFindState: () => monaco.editor.IFindControllerState | null
 }
 
 export function useMonacoEditor(
@@ -35,7 +44,9 @@ export function useMonacoEditor(
 ): MonacoEditorAPI {
   const [editorInstance, setEditorInstance] =
     createSignal<monaco.editor.IStandaloneCodeEditor | null>(null)
-  const [monacoInstance, setMonacoInstance] = createSignal<typeof monaco | null>(null)
+  const [monacoInstance, setMonacoInstance] = createSignal<
+    typeof monaco | null
+  >(null)
 
   // Decoration collections for search highlights, markers, etc.
   let searchDecorations: Array<string> = []
@@ -114,6 +125,26 @@ export function useMonacoEditor(
         verticalScrollbarSize: 10,
         horizontalScrollbarSize: 10,
       },
+      // Additional options to prevent find widget
+      find: {
+        addExtraSpaceOnTop: false,
+        autoFindInSelection: 'never',
+        seedSearchStringFromSelection: 'never',
+      },
+      // Disable any find-related contributions
+      contributions: [
+        'bracketMatching',
+        'wordHighlighter',
+        'wordOperations',
+        'linesOperations',
+        'clipboard',
+        'editorState',
+        'toggleHighContrast',
+        'hover',
+        'coreCommands',
+        'linesOperations',
+        'wordOperations',
+      ],
     })
 
     setEditorInstance(ed)
@@ -147,6 +178,58 @@ export function useMonacoEditor(
         }
       }
     })
+
+    // Disable Ctrl+F shortcut to use custom search
+    ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => {
+      // Prevent default Monaco find widget
+      // The actual search will be handled by the SearchBar component
+      return null
+    })
+
+    // Also disable other find-related shortcuts
+    ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => {
+      // Disable Ctrl+H (replace)
+      return null
+    })
+
+    // Override the editor's built-in find controller
+    const findController = ed.getContribution('editor.contrib.findController')
+    if (findController) {
+      // Override the show method to prevent the find widget from appearing
+      const originalShow = (findController as any).show
+      if (originalShow) {
+        ;(findController as any).show = function () {
+          // Do nothing - prevent find widget from showing
+          return
+        }
+      }
+
+      // Override focus behavior to prevent find widget
+      if ((findController as any).focusFindInput) {
+        (findController as any).focusFindInput = function () {
+          return
+        }
+      }
+
+      // Disable any find widget state changes
+      if ((findController as any).getState) {
+        const originalGetState = (findController as any).getState
+        if (originalGetState) {
+          (findController as any).getState = function () {
+            const state = originalGetState.call(this)
+            if (state) {
+              // Override isRevealed to always be false
+              Object.defineProperty(state, 'isRevealed', {
+                get: () => false,
+                set: () => {},
+                configurable: true
+              })
+            }
+            return state
+          }
+        }
+      }
+    }
   })
 
   // Update content
@@ -313,11 +396,116 @@ export function useMonacoEditor(
     return ranges?.[0] ?? null
   }
 
+  // Monaco native find functionality
+  const findNext = (query: string, findOptions?: any) => {
+    const editor = editorInstance()
+    if (!editor) return false
+
+    const controller = editor.getContribution('editor.contrib.findController')
+    if (!controller) return false
+
+    try {
+      // Ensure the find widget stays hidden
+      const findController = controller as any
+
+      // Override any show methods to prevent UI from appearing
+      if (findController.show) {
+        findController.show = function () {
+          return
+        }
+      }
+
+      findController.start({
+        forceRevealReplace: false,
+        seedSearchStringFromSelection: 'single',
+        seedSearchStringFromNonEmptySelection: true,
+        shouldFocus: false,
+        shouldAnimate: true,
+        updateSearchScope: false,
+        ...findOptions,
+      })
+
+      if (query) {
+        findController.getState().change({ searchString: query }, true)
+      }
+
+      const result = findController.moveToNextMatch()
+
+      // Hide any find widget that might have been shown
+      if (findController.hide) {
+        findController.hide()
+      }
+
+      return result
+    } catch {
+      return false
+    }
+  }
+
+  const findPrevious = (query: string, findOptions?: any) => {
+    const editor = editorInstance()
+    if (!editor) return false
+
+    const controller = editor.getContribution('editor.contrib.findController')
+    if (!controller) return false
+
+    try {
+      // Ensure the find widget stays hidden
+      const findController = controller as any
+
+      // Override any show methods to prevent UI from appearing
+      if (findController.show) {
+        findController.show = function () {
+          return
+        }
+      }
+
+      findController.start({
+        forceRevealReplace: false,
+        seedSearchStringFromSelection: 'single',
+        seedSearchStringFromNonEmptySelection: true,
+        shouldFocus: false,
+        shouldAnimate: true,
+        updateSearchScope: false,
+        ...findOptions,
+      })
+
+      if (query) {
+        findController.getState().change({ searchString: query }, true)
+      }
+
+      const result = findController.moveToPrevMatch()
+
+      // Hide any find widget that might have been shown
+      if (findController.hide) {
+        findController.hide()
+      }
+
+      return result
+    } catch {
+      return false
+    }
+  }
+
+  const getFindState = () => {
+    const editor = editorInstance()
+    if (!editor) return null
+
+    const controller = editor.getContribution('editor.contrib.findController')
+    if (!controller) return null
+
+    const findController = controller as any
+    return findController.getState ? findController.getState() : null
+  }
+
   return {
     editor: editorInstance,
     monaco: monacoInstance,
     scrollToLine,
     revealLine,
     getVisibleRange,
+    findNext,
+    findPrevious,
+    getFindState,
   }
 }

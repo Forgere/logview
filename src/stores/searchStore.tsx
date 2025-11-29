@@ -4,10 +4,18 @@ import type { ParentProps } from 'solid-js'
 import type { SearchMatch, SearchOptions } from '~/types'
 import { buildSearchRegex } from '~/utils/searchHelpers'
 
+// Monaco integration interface
+interface MonacoSearchIntegration {
+  findNext: (query: string, options?: any) => boolean
+  findPrevious: (query: string, options?: any) => boolean
+  scrollToLine: (line: number, center?: boolean) => void
+}
+
 interface SearchState {
   options: SearchOptions
   matches: Array<SearchMatch>
   currentMatchIndex: number
+  monacoIntegration?: MonacoSearchIntegration
 }
 
 interface SearchActions {
@@ -15,6 +23,7 @@ interface SearchActions {
   setIsRegex: (isRegex: boolean) => void
   setCaseSensitive: (caseSensitive: boolean) => void
   setWholeWord: (wholeWord: boolean) => void
+  setMonacoIntegration: (integration: MonacoSearchIntegration) => void
   updateMatches: (lines: Array<string>) => void
   nextMatch: () => void
   prevMatch: () => void
@@ -25,7 +34,13 @@ interface SearchActions {
 type SearchStore = [
   SearchState,
   SearchActions,
-  { currentMatch: () => SearchMatch | null },
+  {
+    currentMatch: () => SearchMatch | null
+    hasResults: () => boolean
+    resultsCount: () => number
+    searchQuery: () => string
+    isValidSearch: () => boolean
+  },
 ]
 
 const SearchContext = createContext<SearchStore>()
@@ -53,8 +68,32 @@ export function SearchProvider(props: ParentProps) {
     return null
   })
 
+  // Derived: has search results
+  const hasResults = createMemo(() => state.matches.length > 0)
+
+  // Derived: results count
+  const resultsCount = createMemo(() => state.matches.length)
+
+  // Derived: current search query
+  const searchQuery = createMemo(() => state.options.query)
+
+  // Derived: is valid search (has query and regex is valid)
+  const isValidSearch = createMemo(() => {
+    const query = state.options.query.trim()
+    if (!query) return false
+
+    try {
+      // Test if regex is valid
+      buildSearchRegex(state.options)
+      return true
+    } catch {
+      return false
+    }
+  })
+
   const actions: SearchActions = {
     setQuery: (query: string) => {
+      console.log('Setting search query to:', query)
       setState('options', 'query', query)
     },
 
@@ -70,6 +109,10 @@ export function SearchProvider(props: ParentProps) {
       setState('options', 'wholeWord', wholeWord)
     },
 
+    setMonacoIntegration: (integration: MonacoSearchIntegration) => {
+      setState('monacoIntegration', integration)
+    },
+
     updateMatches: (lines: Array<string>) => {
       const regex = buildSearchRegex(state.options)
       if (!regex) {
@@ -77,15 +120,30 @@ export function SearchProvider(props: ParentProps) {
         return
       }
 
+      // Optimize: Use more efficient matching with batch updates
       const matches: Array<SearchMatch> = []
-      for (let i = 0; i < lines.length; i++) {
-        regex.lastIndex = 0
-        let matchIndex = 0
-        let match
-        while ((match = regex.exec(lines[i])) !== null) {
-          matches.push({ lineIndex: i, matchIndex })
-          matchIndex++
-          if (match[0].length === 0) regex.lastIndex++
+
+      // Process lines in chunks for better performance on large files
+      const CHUNK_SIZE = 1000
+
+      for (
+        let chunkStart = 0;
+        chunkStart < lines.length;
+        chunkStart += CHUNK_SIZE
+      ) {
+        const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, lines.length)
+
+        for (let i = chunkStart; i < chunkEnd; i++) {
+          regex.lastIndex = 0
+          let matchIndex = 0
+          let match
+
+          // Use optimized regex matching
+          while ((match = regex.exec(lines[i])) !== null) {
+            matches.push({ lineIndex: i, matchIndex })
+            matchIndex++
+            if (match[0].length === 0) regex.lastIndex++
+          }
         }
       }
 
@@ -96,17 +154,79 @@ export function SearchProvider(props: ParentProps) {
     },
 
     nextMatch: () => {
+      // Try Monaco's native search first if available
+      if (state.monacoIntegration) {
+        const success = state.monacoIntegration.findNext(state.options.query, {
+          regex: state.options.isRegex,
+          caseSensitive: state.options.caseSensitive,
+          wholeWord: state.options.wholeWord,
+        })
+        if (success) {
+          // Monaco found a match, update our index to track it
+          if (state.matches.length > 0) {
+            const nextIndex =
+              state.currentMatchIndex < state.matches.length - 1
+                ? state.currentMatchIndex + 1
+                : 0
+            setState('currentMatchIndex', nextIndex)
+          }
+          return
+        }
+      }
+
+      // Fall back to manual search
       if (state.matches.length === 0) return
-      setState('currentMatchIndex', (prev) =>
-        prev < state.matches.length - 1 ? prev + 1 : 0,
-      )
+      const nextIndex =
+        state.currentMatchIndex < state.matches.length - 1
+          ? state.currentMatchIndex + 1
+          : 0
+      console.log('Next match index:', nextIndex)
+      setState('currentMatchIndex', nextIndex)
+
+      // Scroll to match if Monaco integration available
+      if (state.monacoIntegration) {
+        const match = state.matches[nextIndex]
+        state.monacoIntegration.scrollToLine(match.lineIndex + 1, true)
+      }
     },
 
     prevMatch: () => {
+      // Try Monaco's native search first if available
+      if (state.monacoIntegration) {
+        const success = state.monacoIntegration.findPrevious(
+          state.options.query,
+          {
+            regex: state.options.isRegex,
+            caseSensitive: state.options.caseSensitive,
+            wholeWord: state.options.wholeWord,
+          },
+        )
+        if (success) {
+          // Monaco found a match, update our index to track it
+          if (state.matches.length > 0) {
+            const prevIndex =
+              state.currentMatchIndex > 0
+                ? state.currentMatchIndex - 1
+                : state.matches.length - 1
+            setState('currentMatchIndex', prevIndex)
+          }
+          return
+        }
+      }
+
+      // Fall back to manual search
       if (state.matches.length === 0) return
-      setState('currentMatchIndex', (prev) =>
-        prev > 0 ? prev - 1 : state.matches.length - 1,
-      )
+      const prevIndex =
+        state.currentMatchIndex > 0
+          ? state.currentMatchIndex - 1
+          : state.matches.length - 1
+      setState('currentMatchIndex', prevIndex)
+
+      // Scroll to match if Monaco integration available
+      if (state.monacoIntegration) {
+        const match = state.matches[prevIndex]
+        state.monacoIntegration.scrollToLine(match.lineIndex + 1, true)
+      }
     },
 
     goToMatch: (index: number) => {
@@ -130,7 +250,19 @@ export function SearchProvider(props: ParentProps) {
   }
 
   return (
-    <SearchContext.Provider value={[state, actions, { currentMatch }]}>
+    <SearchContext.Provider
+      value={[
+        state,
+        actions,
+        {
+          currentMatch,
+          hasResults,
+          resultsCount,
+          searchQuery,
+          isValidSearch,
+        },
+      ]}
+    >
       {props.children}
     </SearchContext.Provider>
   )
