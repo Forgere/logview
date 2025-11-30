@@ -54,10 +54,13 @@ export class FileStreamer {
 
           while (lineBuffer.length >= MAX_BATCH) {
             const batch = lineBuffer.splice(0, MAX_BATCH)
-            if ('requestIdleCallback' in window) {
-              requestIdleCallback(() => options.onChunk(batch))
+            if (typeof window !== 'undefined' && 'requestIdleCallback' in window && window.requestIdleCallback) {
+              window.requestIdleCallback(() => options.onChunk(batch))
+            } else if (typeof window !== 'undefined' && 'requestAnimationFrame' in window && window.requestAnimationFrame) {
+              window.requestAnimationFrame(() => options.onChunk(batch))
             } else {
-              requestAnimationFrame(() => options.onChunk(batch))
+              // Fallback for SSR or environments without these APIs
+              options.onChunk(batch)
             }
           }
         } else {

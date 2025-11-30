@@ -100,12 +100,16 @@ function RouteComponent() {
     }
 
     const onMouseUp = () => {
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
+      if (typeof window !== 'undefined' && window.removeEventListener) {
+        window.removeEventListener('mousemove', onMouseMove)
+        window.removeEventListener('mouseup', onMouseUp)
+      }
     }
 
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('mousemove', onMouseMove)
+      window.addEventListener('mouseup', onMouseUp)
+    }
   }
 
   const onMouseDownRight = (e: MouseEvent) => {
@@ -120,12 +124,16 @@ function RouteComponent() {
     }
 
     const onMouseUp = () => {
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
+      if (typeof window !== 'undefined' && window.removeEventListener) {
+        window.removeEventListener('mousemove', onMouseMove)
+        window.removeEventListener('mouseup', onMouseUp)
+      }
     }
 
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('mousemove', onMouseMove)
+      window.addEventListener('mouseup', onMouseUp)
+    }
   }
 
   // Optimize: Virtual scroll handler
@@ -211,11 +219,17 @@ function RouteComponent() {
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown);
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('keydown', handleKeyDown);
 
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+      return () => {
+        if (typeof window !== 'undefined' && window.removeEventListener) {
+          window.removeEventListener('keydown', handleKeyDown);
+        }
+      };
+    } else {
+      return () => {}; // Return empty cleanup function when window is not available
+    }
   })
 
   return (

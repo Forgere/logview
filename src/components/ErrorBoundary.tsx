@@ -29,10 +29,6 @@ const DefaultErrorFallback: Component<ErrorFallbackProps> = (props) => {
     props.reset()
   }
 
-  const handleReload = () => {
-    window.location.reload()
-  }
-
   return (
     <div class="flex items-center justify-center min-h-[200px] p-6 bg-[#1e1e1e] border border-[#333] rounded-lg">
       <div class="max-w-md w-full text-center">
@@ -58,14 +54,6 @@ const DefaultErrorFallback: Component<ErrorFallbackProps> = (props) => {
           >
             <RefreshCw size={14} />
             Try Again
-          </button>
-
-          <button
-            onClick={handleReload}
-            class="inline-flex items-center gap-2 px-4 py-2 bg-[#252526] hover:bg-[#333] border border-[#555] text-gray-300 rounded-md text-sm font-medium transition-colors"
-          >
-            <RefreshCw size={14} />
-            Reload Page
           </button>
         </div>
 

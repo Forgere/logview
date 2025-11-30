@@ -4,7 +4,6 @@ import type { ParentProps } from 'solid-js'
 import type { FileInfo, ViewMode, ViewSettings, WatchMode } from '~/types'
 import { FileStreamer } from '~/services/fileStreamService'
 import type * as monaco from 'monaco-editor'
-import { Range } from 'monaco-editor'
 
 interface LogState {
   file: FileInfo | null
@@ -106,7 +105,12 @@ export function LogProvider(props: ParentProps) {
     const doFlush = () => {
       model.pushEditOperations([], [
         {
-          range: new Range(startLine, 1, startLine, 1),
+          range: {
+            startLineNumber: startLine,
+            startColumn: 1,
+            endLineNumber: startLine,
+            endColumn: 1,
+          },
           text: chunk.join('\n') + '\n',
         },
       ], () => null)
@@ -135,10 +139,13 @@ export function LogProvider(props: ParentProps) {
       }
     }
 
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(doFlush)
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window && window.requestIdleCallback) {
+      window.requestIdleCallback(doFlush)
+    } else if (typeof window !== 'undefined' && 'requestAnimationFrame' in window && window.requestAnimationFrame) {
+      window.requestAnimationFrame(doFlush)
     } else {
-      requestAnimationFrame(doFlush)
+      // Fallback for SSR or environments without these APIs
+      doFlush()
     }
   }
 
