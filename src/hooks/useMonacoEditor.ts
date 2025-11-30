@@ -22,6 +22,7 @@ export interface UseMonacoEditorOptions {
   // Search functionality access
   setSearchQuery?: (query: string) => void
   focusSearchInput?: () => void
+  onCreate?: (editor: monaco.editor.IStandaloneCodeEditor) => void
 }
 
 export interface MonacoEditorAPI {
@@ -32,13 +33,14 @@ export interface MonacoEditorAPI {
   getVisibleRange: () => monaco.Range | null
   findNext: (
     query: string,
-    options?: monaco.editor.IFindControllerOptions,
+    options?: any, // Using any since IFindControllerOptions may not be available
   ) => boolean
   findPrevious: (
     query: string,
-    options?: monaco.editor.IFindControllerOptions,
+    options?: any, // Using any since IFindControllerOptions may not be available
   ) => boolean
-  getFindState: () => monaco.editor.IFindControllerState | null
+  getFindState: () => any | null, // Using any since IFindControllerState may not be available，
+  onCreate?: (editor: monaco.editor.IStandaloneCodeEditor) => void
 }
 
 export function useMonacoEditor(
@@ -150,6 +152,7 @@ export function useMonacoEditor(
       ],
     })
 
+    options.onCreate?.(ed)
     setEditorInstance(ed)
 
     // Selection change handler
@@ -254,6 +257,7 @@ export function useMonacoEditor(
     on(options.content, (content) => {
       const ed = editorInstance()
       if (ed && content !== ed.getValue()) {
+        console.log(content)
         ed.setValue(content)
       }
     }),

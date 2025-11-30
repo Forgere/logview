@@ -3,8 +3,6 @@ import {
   ErrorBoundary,
   For,
   Show,
-  batch,
-  createEffect,
   createMemo,
   createSignal,
   onMount,
@@ -16,10 +14,8 @@ import {
   X,
 } from 'lucide-solid'
 import type {
-  FileInfo,
   HighlightRule,
   LogMarker,
-  SearchOptions,
   ViewMode,
   ViewSettings,
 } from '~/types'
@@ -42,7 +38,7 @@ export const Route = createFileRoute('/viewer')({
 })
 
 function RouteComponent() {
-  const [logState, logActions] = useLog()
+  const { state: logState, actions: logActions, setMonacoEditor } = useLog()
   const [searchState, searchActions, searchDerived] = useSearch()
   // Layout state
   const [bottomHeight, setBottomHeight] = createSignal(200)
@@ -57,8 +53,10 @@ function RouteComponent() {
   const LINE_HEIGHT = 20 // Approximate line height in pixels
   const VISIBLE_BUFFER = 50 // Extra lines to render for smooth scrolling
 
-  // Optimize: Derived signals for virtual scrolling
-  const totalLines = createMemo(() => logState.lines.length)
+  // Optimize: Derived signals for virtual scrolling - Use line count from the log store state
+  const totalLines = createMemo(() => {
+    return logState.lineCount;
+  })
 
   // Viewer state - Use logState as single source of truth with direct updates
   const setViewMode = (mode: ViewMode) => {
@@ -159,13 +157,8 @@ function RouteComponent() {
     logActions.loadFile(file, viewSettings().newLineConfig)
   }
 
-  // Search functionality - sync search store with log store lines
-  createEffect(() => {
-    // Update search store when log store lines change
-    if (totalLines() > 0) {
-      searchActions.updateMatches(logState.lines)
-    }
-  })
+  // Search functionality - since content is in Monaco now, we'll handle search updates differently
+  // For now, we don't need to sync search store with log store lines since search is handled in Monaco
 
   // Handle search navigation using search store and Monaco integration
   const handleNextSearch = () => {
@@ -204,60 +197,9 @@ function RouteComponent() {
     setMarkers((prev) => [...prev, newMarker])
   }
 
-  // Optimize: Sample data for testing with virtual scrolling
-  const loadSampleData = () => {
-    const sampleLines = [
-      '[2024-01-15 10:23:45] INFO Application starting...',
-      '[2024-01-15 10:23:46] DEBUG Loading configuration files',
-      '[2024-01-15 10:23:46] INFO Database connection established',
-      '[2024-01-15 10:23:47] DEBUG Initializing services',
-      '[2024-01-15 10:23:48] WARN Service timeout detected on port 8080',
-      '[2024-01-15 10:23:49] ERROR Failed to connect to external API',
-      '[2024-01-15 10:23:50] INFO Retry attempt 1/3',
-      '[2024-01-15 10:23:51] DEBUG API response: { status: 200, data: {...} }',
-      '[2024-01-15 10:23:52] INFO Connection restored successfully',
-      '[2024-01-15 10:23:53] DEBUG Processing user request',
-      '[2024-01-15 10:23:54] INFO Request completed in 125ms',
-      '[2024-01-15 10:23:55] WARN High memory usage detected: 85%',
-      '[2024-01-15 10:23:56] DEBUG Garbage collection initiated',
-      '[2024-01-15 10:23:57] INFO Memory usage normalized: 45%',
-      '[2024-01-15 10:23:58] ERROR Critical error in payment processing',
-      '[2024-01-15 10:23:59] FATAL System shutdown initiated',
-      '[2024-01-15 10:24:00] INFO Backup procedures activated',
-      '[2024-01-15 10:24:01] DEBUG Saving application state',
-      '[2024-01-15 10:24:02] INFO State saved successfully',
-      '[2024-01-15 10:24:03] WARN Some services may be unavailable',
-      '[2024-01-15 10:24:04] INFO Recovery mode enabled',
-    ]
-
-    // Create more sample data for better virtual scrolling testing
-    const extendedLines: Array<string> = []
-    for (let i = 0; i < 500; i++) {
-      extendedLines.push(
-        ...sampleLines.map((line: string) =>
-          line.replace(
-            '10:23:',
-            `10:${String(23 + Math.floor(i / 60)).padStart(2, '0')}:`,
-          ),
-        ),
-      )
-    }
-
-    // Use log store to set sample data
-    logActions.reset()
-    logActions.setViewMode('follow')
-  }
-
-  // Store selected text for Ctrl+F functionality
-  const [selectedText, setSelectedText] = createSignal<string>('')
-
   // Handle text selection from LogViewer
-  const handleSelectionChange = (selection: { text: string; range: any; line: string } | null) => {
-    if (selection && selection.text.trim()) {
-      setSelectedText(selection.text)
-    } else {
-      setSelectedText('')
-    }
+  const handleSelectionChange = (_selection: { text: string; range: any; line: string } | null) => {
+    // Currently we don't store selected text separately
   }
 
   // Keyboard shortcuts
@@ -270,9 +212,6 @@ function RouteComponent() {
     }
 
     window.addEventListener('keydown', handleKeyDown);
-
-    // Load sample data for demo
-    loadSampleData();
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
@@ -328,7 +267,6 @@ function RouteComponent() {
         <div class="flex-1 flex overflow-hidden">
           <div class="flex-1 overflow-hidden">
             <LogViewer
-              lines={logState.lines}
               viewSettings={viewSettings()}
               searchOptions={{
                 query: searchDerived.searchQuery(),
@@ -339,7 +277,8 @@ function RouteComponent() {
               onSearchMatchesChanged={() => {
                 /* No-op - using search store now */
               }}
-              onMonacoReady={(monacoIntegration) => {
+              onMonacoReady={(monacoIntegration, editor) => {
+                setMonacoEditor(editor)
                 searchActions.setMonacoIntegration(monacoIntegration)
               }}
               customHighlights={highlightRules()}

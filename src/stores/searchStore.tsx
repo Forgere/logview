@@ -24,7 +24,7 @@ interface SearchActions {
   setCaseSensitive: (caseSensitive: boolean) => void
   setWholeWord: (wholeWord: boolean) => void
   setMonacoIntegration: (integration: MonacoSearchIntegration) => void
-  updateMatches: (lines: Array<string>) => void
+  updateMatches: (lines?: Array<string>) => void
   nextMatch: () => void
   prevMatch: () => void
   goToMatch: (index: number) => void
@@ -112,9 +112,22 @@ export function SearchProvider(props: ParentProps) {
       setState('monacoIntegration', integration)
     },
 
-    updateMatches: (lines: Array<string>) => {
+    updateMatches: (lines?: Array<string>) => {
       const regex = buildSearchRegex(state.options)
       if (!regex) {
+        setState({ matches: [], currentMatchIndex: -1 })
+        return
+      }
+
+      // If we have Monaco integration, we can leverage Monaco's search capabilities
+      if (state.monacoIntegration && typeof state.monacoIntegration.findNext === 'function') {
+        // For now, just clear the matches, as Monaco will handle searching internally
+        setState({ matches: [], currentMatchIndex: -1 })
+        return
+      }
+
+      // Fallback to the old method if no Monaco integration (for backward compatibility)
+      if (!lines) {
         setState({ matches: [], currentMatchIndex: -1 })
         return
       }

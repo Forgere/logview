@@ -1,4 +1,4 @@
-import { Show, batch, createEffect, createSignal, on, onMount } from 'solid-js'
+import { Show, batch, createEffect, createSignal, on } from 'solid-js'
 import { Bookmark } from 'lucide-solid'
 import type {
   HighlightRule,
@@ -10,6 +10,8 @@ import type {
 import { useMonacoEditor } from '~/hooks/useMonacoEditor'
 import { LogViewerErrorBoundary } from '~/components/ErrorBoundary'
 
+import type * as monaco from 'monaco-editor'
+
 interface SearchOptions {
   query: string
   isRegex: boolean
@@ -18,7 +20,6 @@ interface SearchOptions {
 }
 
 interface LogViewerProps {
-  lines: Array<string>
   viewSettings: ViewSettings
   searchOptions: SearchOptions
   onSearchMatchesChanged?: (count: number, current: number) => void
@@ -29,7 +30,7 @@ interface LogViewerProps {
   onSelectionChange?: (
     selection: { text: string; range: any; line: string } | null,
   ) => void
-  onMonacoReady?: (monacoIntegration: any) => void
+  onMonacoReady?: (monacoIntegration: any, editor: monaco.editor.IStandaloneCodeEditor | null) => void
   // Search functions
   setSearchQuery?: (query: string) => void
   focusSearchInput?: () => void
@@ -39,7 +40,6 @@ export function LogViewer(props: LogViewerProps) {
   let containerRef: HTMLDivElement | undefined
   let editorContainerRef: HTMLDivElement | undefined
 
-  const [content, setContent] = createSignal('')
   const [searchMatches, setSearchMatches] = createSignal<Array<SearchMatch>>([])
   const [currentMatchIndex, setCurrentMatchIndex] = createSignal(0)
   const [markerLines, setMarkerLines] = createSignal<Array<number>>([])
@@ -49,17 +49,6 @@ export function LogViewer(props: LogViewerProps) {
     range: any
     text: string
   } | null>(null)
-
-  // Optimize: Format content from lines with proper dependency tracking
-  createEffect(
-    on(
-      () => props.lines,
-      (lines) => {
-        setContent(lines.join('\n'))
-      },
-      { defer: true },
-    ),
-  )
 
   // Optimize: Update marker lines with batch updates
   createEffect(
@@ -86,7 +75,7 @@ export function LogViewer(props: LogViewerProps) {
 
   // Monaco editor setup
   const monacoAPI = useMonacoEditor(() => editorContainerRef, {
-    content,
+    content: () => "",  // Provide empty content since it will be managed directly
     settings: () => props.viewSettings,
     highlightRules: () => props.customHighlights || [],
     searchMatches,
@@ -157,6 +146,16 @@ export function LogViewer(props: LogViewerProps) {
     // Pass search functions to Monaco editor from props
     setSearchQuery: props.setSearchQuery,
     focusSearchInput: props.focusSearchInput,
+    onCreate: (editor) => {
+      if (props.onMonacoReady) {
+        const monacoIntegration = {
+          findNext: monacoAPI.findNext,
+          findPrevious: monacoAPI.findPrevious,
+          scrollToLine: monacoAPI.scrollToLine,
+        }
+        props.onMonacoReady(monacoIntegration, editor)
+      }
+    }
   })
 
   // Optimize: Search functionality with proper dependency tracking
@@ -168,7 +167,6 @@ export function LogViewer(props: LogViewerProps) {
           props.searchOptions.isRegex,
           props.searchOptions.isCaseSensitive,
           props.searchOptions.isWholeWord,
-          content(),
         ] as const,
       ([query, isRegex, isCaseSensitive, isWholeWord]) => {
         if (!query || !monacoAPI.editor()) {
@@ -262,19 +260,6 @@ export function LogViewer(props: LogViewerProps) {
       }
     }
   }
-
-  // Expose methods for parent components (no longer using global API)
-  onMount(() => {
-    // Notify parent when Monaco is ready with integration methods
-    if (props.onMonacoReady) {
-      const monacoIntegration = {
-        findNext: monacoAPI.findNext,
-        findPrevious: monacoAPI.findPrevious,
-        scrollToLine: monacoAPI.scrollToLine,
-      }
-      props.onMonacoReady(monacoIntegration)
-    }
-  })
 
   return (
     <LogViewerErrorBoundary>

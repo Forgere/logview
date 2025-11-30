@@ -1,310 +1,245 @@
-import { createContext, useContext } from "solid-js";
-import { createStore, produce } from "solid-js/store";
-import type { ParentProps } from "solid-js";
-import type { FileInfo, ViewMode, ViewSettings, WatchMode } from "~/types";
-import { FileStreamer } from "~/services/fileStreamService";
+import { createContext, useContext } from 'solid-js'
+import { createStore } from 'solid-js/store'
+import type { ParentProps } from 'solid-js'
+import type { FileInfo, ViewMode, ViewSettings, WatchMode } from '~/types'
+import { FileStreamer } from '~/services/fileStreamService'
+import type * as monaco from 'monaco-editor'
+import { Range } from 'monaco-editor'
 
 interface LogState {
-  file: FileInfo | null;
-
-  // IMPORTANT: rawLines must exist (you used it in reprocessLines)
-  rawLines: Array<string>;
-
-  lines: Array<string>;
-  lastNewLineConfig: ViewSettings["newLineConfig"] | null;
-
-  isStreaming: boolean;
-  progress: number;
-
-  viewMode: ViewMode;
-
-  watchPattern: string;
-  watchMode: WatchMode;
-  watchMatchIndex: number | null;
-
-  pendingWatchMatches: Array<number>;
-
-  lastScrollRequest: number;
+  file: FileInfo | null
+  isStreaming: boolean
+  progress: number
+  viewMode: ViewMode
+  watchPattern: string
+  watchMode: WatchMode
+  watchMatchIndex: number | null
+  pendingWatchMatches: Array<number>
+  lastScrollRequest: number
+  lineCount: number
 }
 
 interface LogActions {
-  loadFile: (file: File, cfg: ViewSettings["newLineConfig"]) => void;
-  reset: () => void;
-  setViewMode: (mode: ViewMode) => void;
-  setWatchPattern: (pattern: string) => void;
-  setWatchMode: (mode: WatchMode) => void;
-  setWatchMatchIndex: (index: number | null) => void;
-  clearPendingWatchMatches: () => void;
-  togglePause: () => void;
-  resumeFollowing: () => void;
-  reprocessLines: (cfg: ViewSettings["newLineConfig"]) => void;
+  loadFile: (file: File, newLineConfig: ViewSettings['newLineConfig']) => void
+  reset: () => void
+  setViewMode: (mode: ViewMode) => void
+  setWatchPattern: (pattern: string) => void
+  setWatchMode: (mode: WatchMode) => void
+  setWatchMatchIndex: (index: number | null) => void
+  clearPendingWatchMatches: () => void
+  togglePause: () => void
+  resumeFollowing: () => void
 }
 
-type LogStore = [LogState, LogActions];
+interface LogStoreContext {
+  state: LogState
+  actions: LogActions
+  monacoEditor: monaco.editor.IStandaloneCodeEditor | null
+  setMonacoEditor: (editor: monaco.editor.IStandaloneCodeEditor | null) => void
+}
 
-const LogContext = createContext<LogStore>();
-
-/** --------------------------------------
- *  Chunk Processor
- * -------------------------------------*/
-const processChunk = (
-  chunk: Array<string>,
-  config: ViewSettings["newLineConfig"]
-): Array<string> => {
-  if (!config.enabled || !config.match) return chunk;
-
-  const { match, position } = config;
-  const result: Array<string> = [];
-
-  for (const line of chunk) {
-    if (line.indexOf(match) === -1) {
-      result.push(line);
-      continue;
-    }
-
-    const parts = line.split(match);
-    if (parts.length === 1) {
-      result.push(parts[0]);
-      continue;
-    }
-
-    if (position === "after") {
-      const len = parts.length;
-      for (let j = 0; j < len - 1; j++) {
-        result.push(parts[j] + match);
-      }
-      result.push(parts[len - 1]);
-    } else {
-      result.push(parts[0]);
-      for (let j = 1; j < parts.length; j++) {
-        result.push(match + parts[j]);
-      }
-    }
-  }
-  return result;
-};
-
-/** =======================================================================
- *
- *                           LogProvider
- *
- * =======================================================================*/
+const LogContext = createContext<LogStoreContext | null>(null)
 
 export function LogProvider(props: ParentProps) {
-  let streamer: FileStreamer | null = null;
-  let uiUpdateTimer: number | null = null;
-  let pendingBuffer: Array<string> = [];
+  let streamer: FileStreamer | null = null
+  let pendingBuffer: string[] = []
+  let monacoInstance: monaco.editor.IStandaloneCodeEditor | null = null
+  let newLineConfig: ViewSettings['newLineConfig'] | null = null
 
   const [state, setState] = createStore<LogState>({
     file: null,
-    rawLines: [],          // <-- FIX: this was missing
-    lines: [],
-    lastNewLineConfig: null,
     isStreaming: false,
     progress: 0,
-    viewMode: "follow",
-    watchPattern: "",
-    watchMode: "PAUSE_ALL",
+    viewMode: 'follow',
+    watchPattern: '',
+    watchMode: 'PAUSE_ALL',
     watchMatchIndex: null,
     pendingWatchMatches: [],
     lastScrollRequest: 0,
-  });
+    lineCount: 0,
+  })
 
-  /** ---------------------------------
-   *            FLUSH BUFFER
-   * --------------------------------*/
+  // Process chunk according to newLineConfig
+  const processChunk = (chunk: string[]): string[] => {
+    if (!newLineConfig || !newLineConfig.enabled || !newLineConfig.match)
+      return chunk
+
+    const result: string[] = []
+    const { match, position } = newLineConfig
+
+    for (const line of chunk) {
+      if (!line.includes(match)) {
+        result.push(line)
+        continue
+      }
+
+      const parts = line.split(match)
+      if (parts.length === 1) {
+        result.push(parts[0])
+        continue
+      }
+
+      if (position === 'after') {
+        for (let i = 0; i < parts.length - 1; i++) {
+          result.push(parts[i] + match)
+        }
+        result.push(parts[parts.length - 1])
+      } else {
+        result.push(parts[0])
+        for (let i = 1; i < parts.length; i++) {
+          result.push(match + parts[i])
+        }
+      }
+    }
+    return result
+  }
+
   const flushBuffer = () => {
-    if (pendingBuffer.length === 0) return;
+    if (!monacoInstance || pendingBuffer.length === 0) return
+    const chunk = [...pendingBuffer]
+    pendingBuffer = []
 
-    const chunkToAppend = [...pendingBuffer];
-    pendingBuffer = [];
+    const model = monacoInstance.getModel()
+    if (!model) return
+    const startLine = model.getLineCount() + 1
 
-    setState(
-      produce((s) => {
-        const startIndex = s.lines.length;
+    const doFlush = () => {
+      model.pushEditOperations([], [
+        {
+          range: new Range(startLine, 1, startLine, 1),
+          text: chunk.join('\n') + '\n',
+        },
+      ], () => null)
 
-        // WATCH MATCHING
-        if (s.watchPattern) {
-          const lowerPattern = s.watchPattern.toLowerCase();
+      setState('lineCount', model.getLineCount())
 
-          const matches: number[] = [];
-          for (let i = 0; i < chunkToAppend.length; i++) {
-            if (chunkToAppend[i].toLowerCase().includes(lowerPattern)) {
-              matches.push(startIndex + i);
-            }
-          }
+      // Watch pattern
+      if (state.watchPattern) {
+        const lowerPattern = state.watchPattern.toLowerCase()
+        const matches = chunk
+          .map((line, i) => line.toLowerCase().includes(lowerPattern) ? startLine + i : null)
+          .filter((v): v is number => v !== null)
 
-          if (matches.length > 0) {
-            if (s.watchMode === "MARK_ONLY") {
-              // FIX: use setState outside produce
-              // → mark to another array first
-              s.pendingWatchMatches = [...s.pendingWatchMatches, ...matches];
-            } else {
-              if (s.watchMatchIndex == null) {
-                s.watchMatchIndex = matches[0];
-                s.viewMode = "browse";
-              }
-            }
+        if (matches.length) {
+          if (state.watchMode === 'MARK_ONLY') {
+            setState('pendingWatchMatches', prev => [...prev, ...matches])
+          } else if (state.watchMatchIndex === null) {
+            setState('watchMatchIndex', matches[0])
+            setState('viewMode', 'browse')
           }
         }
+      }
 
-        /** IMPORTANT：
-         *  You cannot push directly – but in produce, it's allowed,
-         *  still better to assign for safety.
-         */
-        s.lines = [...s.lines, ...chunkToAppend];
+      if (state.viewMode === 'follow') {
+        setState('lastScrollRequest', Date.now())
+      }
+    }
 
-        if (s.viewMode === "follow") {
-          s.lastScrollRequest = Date.now();
-        }
-      })
-    );
-  };
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(doFlush)
+    } else {
+      requestAnimationFrame(doFlush)
+    }
+  }
 
-  /** ---------------------------------
-   *              ACTIONS
-   * --------------------------------*/
   const actions: LogActions = {
-    loadFile: (file, newLineConfig) => {
-      actions.reset();
-
-      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    loadFile: (file, config) => {
+      actions.reset()
+      newLineConfig = config
 
       setState({
         file: {
           name: file.name,
           size: file.size,
           lastModified: file.lastModified,
-          extension: ext ? `.${ext}` : "default",
+          extension: '.' + file.name.split('.').pop(),
         },
-        lastNewLineConfig: newLineConfig,
         isStreaming: true,
-        viewMode: "follow",
+        viewMode: 'follow',
         watchMatchIndex: null,
         pendingWatchMatches: [],
-      });
+        progress: 0,
+        lineCount: 0,
+      })
 
-      streamer = new FileStreamer();
-      uiUpdateTimer = window.setInterval(flushBuffer, 200);
+      streamer = new FileStreamer()
 
       streamer.streamFile(file, {
-        onChunk: (chunkLines) => {
-          // FIX: store raw lines
-          setState("rawLines", (prev) => [...prev, ...chunkLines]);
-
-          const processed = processChunk(chunkLines, newLineConfig);
-          pendingBuffer.push(...processed);
+        onChunk: (lines) => {
+          pendingBuffer.push(...processChunk(lines))
+          if (pendingBuffer.length > 500) flushBuffer()
         },
-
-        onProgress: (bytesRead, totalBytes) => {
-          setState("progress", (bytesRead / totalBytes) * 100);
-        },
-
+        onProgress: (bytesRead, total) => setState('progress', (bytesRead / total) * 100),
         onComplete: () => {
-          flushBuffer();
-          setState("isStreaming", false);
-          if (uiUpdateTimer) {
-            clearInterval(uiUpdateTimer);
-            uiUpdateTimer = null;
-          }
-          if (state.viewMode === "follow") {
-            setState("lastScrollRequest", Date.now());
-          }
+          flushBuffer()
+          setState('isStreaming', false)
         },
-
         onError: (err) => {
-          console.error("Stream error", err);
-          setState("isStreaming", false);
-          alert("Error reading file: " + err.message);
+          console.error(err)
+          setState('isStreaming', false)
         },
-      });
+      })
     },
 
     reset: () => {
-      streamer?.cancel();
-      streamer = null;
-
-      if (uiUpdateTimer) {
-        clearInterval(uiUpdateTimer);
-        uiUpdateTimer = null;
-      }
-
-      pendingBuffer = [];
+      if (streamer) streamer.cancel()
+      streamer = null
+      pendingBuffer = []
+      newLineConfig = null
 
       setState({
         file: null,
-        rawLines: [],
-        lines: [],
-        lastNewLineConfig: null,
         isStreaming: false,
         progress: 0,
-        viewMode: "follow",
+        viewMode: 'follow',
+        watchPattern: '',
+        watchMode: 'PAUSE_ALL',
         watchMatchIndex: null,
         pendingWatchMatches: [],
         lastScrollRequest: 0,
-      });
-    },
+        lineCount: 0,
+      })
 
-    setViewMode: (mode) => setState("viewMode", mode),
-
-    setWatchPattern: (pattern) => {
-      setState({
-        watchPattern: pattern,
-        watchMatchIndex: null,
-      });
-    },
-
-    setWatchMode: (mode) => setState("watchMode", mode),
-
-    setWatchMatchIndex: (idx) => setState("watchMatchIndex", idx),
-
-    clearPendingWatchMatches: () => setState("pendingWatchMatches", []),
-
-    togglePause: () => {
-      if (state.isStreaming) {
-        streamer?.pause();
-        setState("isStreaming", false);
-      } else if (state.progress < 100 && state.file) {
-        streamer?.resume();
-        setState("isStreaming", true);
-
-        if (!uiUpdateTimer) {
-          uiUpdateTimer = window.setInterval(flushBuffer, 200);
-        }
-
-        setState("watchMatchIndex", null);
+      if (monacoInstance) {
+        const model = monacoInstance.getModel()
+        if (model) model.setValue('')
       }
     },
 
-    resumeFollowing: () => {
-      setState({
-        viewMode: "follow",
-        watchMatchIndex: null,
-      });
+    setViewMode: (mode) => setState('viewMode', mode),
+    setWatchPattern: (pattern) => setState({ watchPattern: pattern, watchMatchIndex: null }),
+    setWatchMode: (mode) => setState('watchMode', mode),
+    setWatchMatchIndex: (index) => setState('watchMatchIndex', index),
+    clearPendingWatchMatches: () => setState('pendingWatchMatches', []),
+    togglePause: () => {
+      if (!streamer) return
+      if (state.isStreaming) {
+        streamer.pause()
+        setState('isStreaming', false)
+      } else {
+        streamer.resume()
+        setState('isStreaming', true)
+      }
     },
-
-    reprocessLines: (newLineConfig) => {
-      if (state.rawLines.length === 0) return;
-
-      const processed = processChunk(state.rawLines, newLineConfig);
-
-      setState({
-        lines: processed,
-        watchMatchIndex: null,
-        pendingWatchMatches: [],
-      });
-    },
-  };
+    resumeFollowing: () => setState({ viewMode: 'follow', watchMatchIndex: null }),
+  }
 
   return (
-    <LogContext.Provider value={[state, actions]}>
+    <LogContext.Provider value={{
+      state,
+      actions,
+      monacoEditor: monacoInstance,
+      setMonacoEditor: (editor: monaco.editor.IStandaloneCodeEditor | null) => {
+        monacoInstance = editor
+      }
+    }}>
       {props.children}
     </LogContext.Provider>
-  );
+  )
 }
 
-export function useLog() {
-  const ctx = useContext(LogContext);
-  if (!ctx) throw new Error("useLog must be used within a LogProvider");
-  return ctx;
+export function useLog(): LogStoreContext {
+  const context = useContext(LogContext)
+  if (!context) throw new Error('useLog must be used within LogProvider')
+  return context
 }
