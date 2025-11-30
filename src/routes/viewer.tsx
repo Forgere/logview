@@ -59,13 +59,8 @@ function RouteComponent() {
   })
 
   // Viewer state - Use logState as single source of truth with direct updates
-  const setViewMode = (mode: ViewMode) => {
-    logActions.setViewMode(mode)
-  }
+  // View mode is now always 'browse', so no mode switching
 
-  const setWatchPattern = (pattern: string) => {
-    logActions.setWatchPattern(pattern)
-  }
 
   const [viewSettings] = createSignal<ViewSettings>(DEFAULT_VIEW_SETTINGS)
 
@@ -78,7 +73,6 @@ function RouteComponent() {
   // Modals and UI state
   const [showSettings, setShowSettings] = createSignal(false)
   const [showShortcuts, setShowShortcuts] = createSignal(false)
-  const [showWatchModal, setShowWatchModal] = createSignal(false)
 
   let searchInputRef: HTMLInputElement | undefined
 
@@ -244,19 +238,14 @@ function RouteComponent() {
       >
         <AppHeader
           viewMode={logState.viewMode}
-          setViewMode={setViewMode}
           isStreaming={logState.progress < 100} // File is still loading
           onTogglePause={logActions.togglePause}
-          onResumeFollowing={logActions.resumeFollowing}
-          watchPattern={logState.watchPattern}
-          setWatchPattern={setWatchPattern}
           totalLines={totalLines()}
           progress={logState.progress}
           fileName={logState.file?.name || null}
           fileSize={logState.file?.size || 0}
           onOpenShortcuts={() => setShowShortcuts(true)}
           onFileSelect={handleFileSelect}
-          onOpenWatchModal={() => setShowWatchModal(true)}
           onOpenSettings={() => setShowSettings(true)}
           onSearchFocus={() => searchInputRef?.focus()}
         />
@@ -300,10 +289,7 @@ function RouteComponent() {
               onAddMarker={handleAddMarker}
               onSelectionChange={handleSelectionChange}
               onUserScroll={(isAtBottom, scrollTop) => {
-                if (isAtBottom && logState.viewMode === 'follow') {
-                  // Keep following
-                }
-                // Handle virtual scrolling
+                // Handle virtual scrolling only, no following behavior
                 handleVirtualScroll(scrollTop || 0)
               }}
               setSearchQuery={searchActions.setQuery}
@@ -445,11 +431,6 @@ function RouteComponent() {
           onClose={() => setShowShortcuts(false)}
         />
 
-        <WatchModal
-          isOpen={showWatchModal()}
-          onClose={() => setShowWatchModal(false)}
-          onSetPattern={setWatchPattern}
-        />
       </ErrorBoundary>
     </div>
   )
@@ -515,61 +496,3 @@ function ShortcutsModal(props: { isOpen: boolean; onClose: () => void }) {
   )
 }
 
-function WatchModal(props: {
-  isOpen: boolean
-  onClose: () => void
-  onSetPattern: (pattern: string) => void
-}) {
-  const [pattern, setPattern] = createSignal('')
-
-  const handleSubmit = (e: Event) => {
-    e.preventDefault()
-    props.onSetPattern(pattern())
-    props.onClose()
-  }
-
-  return (
-    <div
-      class={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 ${props.isOpen ? 'block' : 'hidden'}`}
-    >
-      <div class="bg-[#252526] border border-[#333] rounded-lg p-6 w-96">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-medium text-gray-200">Watch Mode</h3>
-          <button
-            onClick={props.onClose}
-            class="text-gray-500 hover:text-gray-300"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <label class="block text-sm text-gray-400 mb-2">
-            Pattern to watch for:
-          </label>
-          <input
-            type="text"
-            value={pattern()}
-            onInput={(e) => setPattern(e.currentTarget.value)}
-            placeholder="ERROR|WARN|Exception"
-            class="w-full bg-[#1e1e1e] border border-[#3e3e3e] rounded px-3 py-2 text-gray-200 mb-4"
-          />
-          <div class="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={props.onClose}
-              class="px-4 py-2 text-gray-400 hover:text-gray-200 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
-            >
-              Start Watch
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}

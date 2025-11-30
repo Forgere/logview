@@ -9,11 +9,7 @@ interface LogState {
   file: FileInfo | null
   isStreaming: boolean
   progress: number
-  viewMode: ViewMode
-  watchPattern: string
-  watchMode: WatchMode
-  watchMatchIndex: number | null
-  pendingWatchMatches: Array<number>
+  viewMode: ViewMode // Always 'browse' mode now
   lastScrollRequest: number
   lineCount: number
 }
@@ -21,13 +17,11 @@ interface LogState {
 interface LogActions {
   loadFile: (file: File, newLineConfig: ViewSettings['newLineConfig']) => void
   reset: () => void
-  setViewMode: (mode: ViewMode) => void
   setWatchPattern: (pattern: string) => void
   setWatchMode: (mode: WatchMode) => void
   setWatchMatchIndex: (index: number | null) => void
   clearPendingWatchMatches: () => void
   togglePause: () => void
-  resumeFollowing: () => void
 }
 
 interface LogStoreContext {
@@ -49,11 +43,7 @@ export function LogProvider(props: ParentProps) {
     file: null,
     isStreaming: false,
     progress: 0,
-    viewMode: 'follow',
-    watchPattern: '',
-    watchMode: 'PAUSE_ALL',
-    watchMatchIndex: null,
-    pendingWatchMatches: [],
+    viewMode: 'browse',
     lastScrollRequest: 0,
     lineCount: 0,
   })
@@ -95,59 +85,61 @@ export function LogProvider(props: ParentProps) {
 
   const flushBuffer = () => {
     if (!monacoInstance || pendingBuffer.length === 0) return
+
     const chunk = [...pendingBuffer]
     pendingBuffer = []
 
     const model = monacoInstance.getModel()
     if (!model) return
+
+    const scrollTop = monacoInstance.getScrollTop()
+    const layoutInfo = monacoInstance.getLayoutInfo()
+    const atBottom = scrollTop + layoutInfo.height >= monacoInstance.getScrollHeight() - 5
     const startLine = model.getLineCount() + 1
 
-    const doFlush = () => {
+    const BATCH_SIZE = 1000
+    let index = 0
+
+    const processBatch = () => {
+      const batch = chunk.slice(index, index + BATCH_SIZE)
+      if (batch.length === 0) return
+
       model.pushEditOperations([], [
         {
           range: {
-            startLineNumber: startLine,
+            startLineNumber: startLine + index,
             startColumn: 1,
-            endLineNumber: startLine,
+            endLineNumber: startLine + index,
             endColumn: 1,
           },
-          text: chunk.join('\n') + '\n',
+          text: batch.join('\n') + '\n',
         },
       ], () => null)
 
-      setState('lineCount', model.getLineCount())
+      index += BATCH_SIZE
 
-      // Watch pattern
-      if (state.watchPattern) {
-        const lowerPattern = state.watchPattern.toLowerCase()
-        const matches = chunk
-          .map((line, i) => line.toLowerCase().includes(lowerPattern) ? startLine + i : null)
-          .filter((v): v is number => v !== null)
+      if (index < chunk.length) {
+        if ('requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(processBatch)
+        } else {
+          requestAnimationFrame(processBatch)
+        }
+      } else {
+        // 批处理完成，更新行数
+        setState('lineCount', model.getLineCount())
 
-        if (matches.length) {
-          if (state.watchMode === 'MARK_ONLY') {
-            setState('pendingWatchMatches', prev => [...prev, ...matches])
-          } else if (state.watchMatchIndex === null) {
-            setState('watchMatchIndex', matches[0])
-            setState('viewMode', 'browse')
-          }
+        // 保持滚动逻辑
+        if (state.viewMode === 'follow' || atBottom) {
+          monacoInstance?.setScrollTop(monacoInstance.getScrollHeight())
+        } else {
+          monacoInstance?.setScrollTop(scrollTop)
         }
       }
-
-      if (state.viewMode === 'follow') {
-        setState('lastScrollRequest', Date.now())
-      }
     }
 
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window && window.requestIdleCallback) {
-      window.requestIdleCallback(doFlush)
-    } else if (typeof window !== 'undefined' && 'requestAnimationFrame' in window && window.requestAnimationFrame) {
-      window.requestAnimationFrame(doFlush)
-    } else {
-      // Fallback for SSR or environments without these APIs
-      doFlush()
-    }
+    processBatch()
   }
+
 
   const actions: LogActions = {
     loadFile: (file, config) => {
@@ -162,11 +154,10 @@ export function LogProvider(props: ParentProps) {
           extension: '.' + file.name.split('.').pop(),
         },
         isStreaming: true,
-        viewMode: 'follow',
-        watchMatchIndex: null,
-        pendingWatchMatches: [],
+        viewMode: 'browse',
         progress: 0,
         lineCount: 0,
+        lastScrollRequest: 0,
       })
 
       streamer = new FileStreamer()
@@ -198,11 +189,7 @@ export function LogProvider(props: ParentProps) {
         file: null,
         isStreaming: false,
         progress: 0,
-        viewMode: 'follow',
-        watchPattern: '',
-        watchMode: 'PAUSE_ALL',
-        watchMatchIndex: null,
-        pendingWatchMatches: [],
+        viewMode: 'browse',
         lastScrollRequest: 0,
         lineCount: 0,
       })
@@ -213,11 +200,6 @@ export function LogProvider(props: ParentProps) {
       }
     },
 
-    setViewMode: (mode) => setState('viewMode', mode),
-    setWatchPattern: (pattern) => setState({ watchPattern: pattern, watchMatchIndex: null }),
-    setWatchMode: (mode) => setState('watchMode', mode),
-    setWatchMatchIndex: (index) => setState('watchMatchIndex', index),
-    clearPendingWatchMatches: () => setState('pendingWatchMatches', []),
     togglePause: () => {
       if (!streamer) return
       if (state.isStreaming) {
@@ -228,7 +210,6 @@ export function LogProvider(props: ParentProps) {
         setState('isStreaming', true)
       }
     },
-    resumeFollowing: () => setState({ viewMode: 'follow', watchMatchIndex: null }),
   }
 
   return (

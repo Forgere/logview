@@ -10,14 +10,11 @@ import {
   X,
 } from 'lucide-solid'
 
-export type ViewMode = 'follow' | 'browse'
 
 export interface AppHeaderProps {
-  viewMode: ViewMode
-  setViewMode: (mode: ViewMode) => void
+  viewMode: 'browse'  // Only browse mode now
   isStreaming: boolean
   onTogglePause?: () => void
-  onResumeFollowing?: () => void
   watchPattern: string
   setWatchPattern: (pattern: string) => void
   totalLines: number
@@ -56,16 +53,6 @@ export function AppHeader(props: AppHeaderProps) {
 
   // Optimize: Memoize expensive status computation
   const status = createMemo(() => {
-    if (props.watchPattern) {
-      return {
-        label: 'WATCHING',
-        subLabel: `: ${props.watchPattern}`,
-        icon: () => <Eye size={14} class="animate-pulse" />,
-        color: 'text-amber-400',
-        borderColor: 'border-amber-900/50',
-      }
-    }
-
     if (!props.isStreaming) {
       return {
         label: 'FINISHED',
@@ -76,19 +63,9 @@ export function AppHeader(props: AppHeaderProps) {
       }
     }
 
-    if (props.viewMode === 'follow') {
-      return {
-        label: 'FOLLOWING',
-        subLabel: '(Loading...)',
-        icon: () => <CircleArrowDown size={14} class="animate-bounce" />,
-        color: 'text-green-400',
-        borderColor: 'border-green-900/50',
-      }
-    }
-
-    // Streaming but browsing
+    // Always show as loading since follow mode is removed
     return {
-      label: 'BROWSING',
+      label: 'LOADING',
       subLabel: '(Loading...)',
       icon: () => <MousePointer2 size={14} />,
       color: 'text-yellow-400',
@@ -125,68 +102,17 @@ export function AppHeader(props: AppHeaderProps) {
               <span>HyperLog</span>
             </div>
 
-            {/* File Actions */}
-            <div class="flex items-center gap-2">
 
-              <button
-                onClick={props.onOpenWatchModal}
-                class={`flex items-center gap-1.5 px-3 py-1.5 border rounded text-sm transition-colors ${
-                  props.watchPattern
-                    ? 'bg-amber-900/30 border-amber-700 text-amber-400 hover:bg-amber-900/50'
-                    : 'bg-[#252526] hover:bg-[#2a2d2e] border-[#3e3e3e] text-gray-300 hover:text-white'
-                }`}
-                title="Watch Mode"
-              >
-                <Eye size={14} />
-                Watch
-              </button>
-            </div>
-
-            {/* View Mode Toggle */}
-            <Show when={props.isStreaming}>
+            {/* Pause/Resume button during streaming */}
+            <Show when={props.isStreaming && props.onTogglePause}>
               <div class="flex items-center gap-2 ml-4 border-l border-[#333] pl-4">
-                <span class="text-xs text-gray-500">View:</span>
                 <button
-                  onClick={() => props.setViewMode('follow')}
-                  class={`px-2 py-1 text-xs rounded transition-colors ${
-                    props.viewMode === 'follow'
-                      ? 'bg-green-900/30 text-green-400 border border-green-700'
-                      : 'text-gray-500 hover:text-gray-300 hover:bg-[#2a2d2e]'
-                  }`}
+                  onClick={props.onTogglePause}
+                  class="px-2 py-1 text-xs rounded bg-red-900/30 text-red-400 border border-red-700 hover:bg-red-900/50 transition-colors"
                 >
-                  Follow
+                  {props.isStreaming ? 'Pause' : 'Resume'}
                 </button>
-                <button
-                  onClick={() => props.setViewMode('browse')}
-                  class={`px-2 py-1 text-xs rounded transition-colors ${
-                    props.viewMode === 'browse'
-                      ? 'bg-yellow-900/30 text-yellow-400 border border-yellow-700'
-                      : 'text-gray-500 hover:text-gray-300 hover:bg-[#2a2d2e]'
-                  }`}
-                >
-                  Browse
-                </button>
-
-                {/* Pause/Resume button during streaming */}
-                <Show when={props.onTogglePause}>
-                  <button
-                    onClick={props.onTogglePause}
-                    class="px-2 py-1 text-xs rounded bg-red-900/30 text-red-400 border border-red-700 hover:bg-red-900/50 transition-colors"
-                  >
-                    {props.isStreaming ? 'Pause' : 'Resume'}
-                  </button>
-                </Show>
               </div>
-            </Show>
-
-            {/* Resume Following button when not streaming but in browse mode */}
-            <Show when={!props.isStreaming && props.viewMode === 'browse' && props.onResumeFollowing}>
-              <button
-                onClick={props.onResumeFollowing}
-                class="px-2 py-1 text-xs rounded bg-blue-900/30 text-blue-400 border border-blue-700 hover:bg-blue-900/50 transition-colors ml-2"
-              >
-                Resume Following
-              </button>
             </Show>
           </div>
 
@@ -202,17 +128,6 @@ export function AppHeader(props: AppHeaderProps) {
                 <span class="font-normal text-gray-500">
                   {status().subLabel}
                 </span>
-
-                {/* Quick Action to Stop Watch */}
-                <Show when={props.watchPattern}>
-                  <button
-                    onClick={() => props.setWatchPattern('')}
-                    class="ml-2 p-0.5 rounded hover:bg-[#333] text-gray-500 hover:text-white transition-colors"
-                    title="Cancel Watch"
-                  >
-                    <X size={12} />
-                  </button>
-                </Show>
               </div>
 
               {/* File Metadata */}
