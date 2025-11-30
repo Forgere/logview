@@ -26,29 +26,28 @@ import type {
 import { AppHeader } from '~/components/Viewer/AppHeader'
 import { SearchBar } from '~/components/Viewer/SearchBar'
 import { LogViewer } from '~/components/Viewer/LogViewer'
+import { DragUpload } from '~/components/Viewer/DragUpload'
+import { LogProvider, useLog } from '~/stores/logStore'
 import { SearchProvider, useSearch } from '~/stores/searchStore'
 import { DEFAULT_HIGHLIGHT_RULES, DEFAULT_VIEW_SETTINGS } from '~/types'
 
 export const Route = createFileRoute('/viewer')({
   component: () => (
-    <SearchProvider>
-      <RouteComponent />
-    </SearchProvider>
+    <LogProvider>
+      <SearchProvider>
+        <RouteComponent />
+      </SearchProvider>
+    </LogProvider>
   ),
 })
 
 function RouteComponent() {
+  const [logState, logActions] = useLog()
   const [searchState, searchActions, searchDerived] = useSearch()
   // Layout state
   const [bottomHeight, setBottomHeight] = createSignal(200)
   const [rightPanelWidth, setRightPanelWidth] = createSignal(300)
   const [isRightPanelOpen, setIsRightPanelOpen] = createSignal(false)
-
-  // File and content state
-  const [lines, setLines] = createSignal<Array<string>>([])
-  const [fileInfo, setFileInfo] = createSignal<FileInfo | null>(null)
-  const [isStreaming, setIsStreaming] = createSignal(false)
-  const [progress, setProgress] = createSignal(0)
 
   // Virtual scrolling state
   const [visibleRange, setVisibleRange] = createSignal({
@@ -59,12 +58,18 @@ function RouteComponent() {
   const VISIBLE_BUFFER = 50 // Extra lines to render for smooth scrolling
 
   // Optimize: Derived signals for virtual scrolling
-  const totalLines = createMemo(() => lines().length)
+  const totalLines = createMemo(() => logState.lines.length)
 
-  // Viewer state
-  const [viewMode, setViewMode] = createSignal<ViewMode>('follow')
+  // Viewer state - Use logState as single source of truth with direct updates
+  const setViewMode = (mode: ViewMode) => {
+    logActions.setViewMode(mode)
+  }
+
+  const setWatchPattern = (pattern: string) => {
+    logActions.setWatchPattern(pattern)
+  }
+
   const [viewSettings] = createSignal<ViewSettings>(DEFAULT_VIEW_SETTINGS)
-  const [watchPattern, setWatchPattern] = createSignal('')
 
   // Marker state
   const [markers, setMarkers] = createSignal<Array<LogMarker>>([])
@@ -145,43 +150,20 @@ function RouteComponent() {
     }
   }
 
-  // Optimize: File handling with virtual scrolling
+  // Optimize: File handling using log store
   const handleFileSelect = (file: File) => {
     // Reset virtual scrolling state
     setVisibleRange({ start: 0, end: 1000 })
 
-    setFileInfo({
-      name: file.name,
-      size: file.size,
-      lastModified: file.lastModified,
-      extension: file.name.split('.').pop()?.toLowerCase() || '',
-    })
-
-    // Simulate file reading and streaming
-    setIsStreaming(true)
-    setProgress(0)
-
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const content = e.target?.result as string
-      const fileLines = content.split('\n')
-
-      // Use batch updates for better performance
-      batch(() => {
-        setLines(fileLines)
-        setProgress(100)
-        setIsStreaming(false)
-      })
-    }
-
-    reader.readAsText(file)
+    // Use the log store's loadFile action instead of custom implementation
+    logActions.loadFile(file, viewSettings().newLineConfig)
   }
 
-  // Search functionality - sync search store with Monaco's native search
+  // Search functionality - sync search store with log store lines
   createEffect(() => {
-    // Update search store when lines change
-    if (lines().length > 0) {
-      searchActions.updateMatches(lines())
+    // Update search store when log store lines change
+    if (totalLines() > 0) {
+      searchActions.updateMatches(logState.lines)
     }
   })
 
@@ -261,16 +243,9 @@ function RouteComponent() {
       )
     }
 
-    // Use batch updates for better performance
-    batch(() => {
-      setLines(extendedLines)
-      setFileInfo({
-        name: 'sample.log',
-        size: extendedLines.join('\n').length,
-        lastModified: Date.now(),
-        extension: 'log',
-      })
-    })
+    // Use log store to set sample data
+    logActions.reset()
+    logActions.setViewMode('follow')
   }
 
   // Store selected text for Ctrl+F functionality
@@ -315,15 +290,17 @@ function RouteComponent() {
         )}
       >
         <AppHeader
-          viewMode={viewMode()}
+          viewMode={logState.viewMode}
           setViewMode={setViewMode}
-          isStreaming={isStreaming()}
-          watchPattern={watchPattern()}
+          isStreaming={logState.progress < 100} // File is still loading
+          onTogglePause={logActions.togglePause}
+          onResumeFollowing={logActions.resumeFollowing}
+          watchPattern={logState.watchPattern}
           setWatchPattern={setWatchPattern}
-          totalLines={lines().length}
-          progress={progress()}
-          fileName={fileInfo()?.name || null}
-          fileSize={fileInfo()?.size || 0}
+          totalLines={totalLines()}
+          progress={logState.progress}
+          fileName={logState.file?.name || null}
+          fileSize={logState.file?.size || 0}
           onOpenShortcuts={() => setShowShortcuts(true)}
           onFileSelect={handleFileSelect}
           onOpenWatchModal={() => setShowWatchModal(true)}
@@ -351,7 +328,7 @@ function RouteComponent() {
         <div class="flex-1 flex overflow-hidden">
           <div class="flex-1 overflow-hidden">
             <LogViewer
-              lines={lines()}
+              lines={logState.lines}
               viewSettings={viewSettings()}
               searchOptions={{
                 query: searchDerived.searchQuery(),
@@ -370,7 +347,7 @@ function RouteComponent() {
               onAddMarker={handleAddMarker}
               onSelectionChange={handleSelectionChange}
               onUserScroll={(isAtBottom, scrollTop) => {
-                if (isAtBottom && viewMode() === 'follow') {
+                if (isAtBottom && logState.viewMode === 'follow') {
                   // Keep following
                 }
                 // Handle virtual scrolling
@@ -380,6 +357,10 @@ function RouteComponent() {
               focusSearchInput={() => searchInputRef?.focus()}
             />
           </div>
+          <DragUpload onFileSelect={handleFileSelect} hasFiles={totalLines() > 0}>
+            {/* Empty div to ensure DragUpload renders properly */}
+            <div></div>
+          </DragUpload>
 
           {/* Right Panel - Markers */}
           <Show when={isRightPanelOpen()}>
@@ -478,7 +459,7 @@ function RouteComponent() {
                 <div>
                   <span class="text-gray-500">Total Lines: </span>
                   <span class="text-gray-300">
-                    {lines().length.toLocaleString()}
+                    {totalLines().toLocaleString()}
                   </span>
                 </div>
                 <div>
@@ -493,7 +474,7 @@ function RouteComponent() {
                 </div>
                 <div>
                   <span class="text-gray-500">View Mode: </span>
-                  <span class="text-gray-300 capitalize">{viewMode()}</span>
+                  <span class="text-gray-300 capitalize">{logState.viewMode}</span>
                 </div>
               </div>
             </div>

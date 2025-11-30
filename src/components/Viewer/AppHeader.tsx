@@ -5,10 +5,8 @@ import {
   CircleQuestionMark,
   Eye,
   MousePointer2,
-  Search,
   Settings,
   Terminal,
-  Upload,
   X,
 } from 'lucide-solid'
 
@@ -18,6 +16,8 @@ export interface AppHeaderProps {
   viewMode: ViewMode
   setViewMode: (mode: ViewMode) => void
   isStreaming: boolean
+  onTogglePause?: () => void
+  onResumeFollowing?: () => void
   watchPattern: string
   setWatchPattern: (pattern: string) => void
   totalLines: number
@@ -127,14 +127,6 @@ export function AppHeader(props: AppHeaderProps) {
 
             {/* File Actions */}
             <div class="flex items-center gap-2">
-              <button
-                onClick={() => fileInputRef?.click()}
-                class="flex items-center gap-1.5 px-3 py-1.5 bg-[#252526] hover:bg-[#2a2d2e] border border-[#3e3e3e] rounded text-sm text-gray-300 hover:text-white transition-colors"
-                title="Open Log File"
-              >
-                <Upload size={14} />
-                Open File
-              </button>
 
               <button
                 onClick={props.onOpenWatchModal}
@@ -147,15 +139,6 @@ export function AppHeader(props: AppHeaderProps) {
               >
                 <Eye size={14} />
                 Watch
-              </button>
-
-              <button
-                onClick={props.onSearchFocus}
-                class="flex items-center gap-1.5 px-3 py-1.5 bg-[#252526] hover:bg-[#2a2d2e] border border-[#3e3e3e] rounded text-sm text-gray-300 hover:text-white transition-colors"
-                title="Focus Search"
-              >
-                <Search size={14} />
-                Search
               </button>
             </div>
 
@@ -183,7 +166,27 @@ export function AppHeader(props: AppHeaderProps) {
                 >
                   Browse
                 </button>
+
+                {/* Pause/Resume button during streaming */}
+                <Show when={props.onTogglePause}>
+                  <button
+                    onClick={props.onTogglePause}
+                    class="px-2 py-1 text-xs rounded bg-red-900/30 text-red-400 border border-red-700 hover:bg-red-900/50 transition-colors"
+                  >
+                    {props.isStreaming ? 'Pause' : 'Resume'}
+                  </button>
+                </Show>
               </div>
+            </Show>
+
+            {/* Resume Following button when not streaming but in browse mode */}
+            <Show when={!props.isStreaming && props.viewMode === 'browse' && props.onResumeFollowing}>
+              <button
+                onClick={props.onResumeFollowing}
+                class="px-2 py-1 text-xs rounded bg-blue-900/30 text-blue-400 border border-blue-700 hover:bg-blue-900/50 transition-colors ml-2"
+              >
+                Resume Following
+              </button>
             </Show>
           </div>
 
