@@ -192,6 +192,7 @@ export function LogViewer(props: LogViewerProps) {
             isCaseSensitive,
             isWholeWord ? null : '',
             true,
+            Number.MAX_SAFE_INTEGER
           )
 
           const searchMatchesList: Array<SearchMatch> = matches.map(
