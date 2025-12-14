@@ -294,6 +294,7 @@ function RouteComponent() {
               }}
               setSearchQuery={searchActions.setQuery}
               focusSearchInput={() => searchInputRef?.focus()}
+              updateMatches={searchActions.updateMatches}
             />
           </div>
           <DragUpload onFileSelect={handleFileSelect} hasFiles={totalLines() > 0}>

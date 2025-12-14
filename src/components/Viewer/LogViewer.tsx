@@ -11,6 +11,7 @@ import { useMonacoEditor } from '~/hooks/useMonacoEditor'
 import { LogViewerErrorBoundary } from '~/components/ErrorBoundary'
 
 import type * as monaco from 'monaco-editor'
+import { useSearch } from '~/stores'
 
 interface SearchOptions {
   query: string
@@ -34,6 +35,7 @@ interface LogViewerProps {
   // Search functions
   setSearchQuery?: (query: string) => void
   focusSearchInput?: () => void
+  updateMatches?: (lines?: Array<SearchMatch>) => void
 }
 
 export function LogViewer(props: LogViewerProps) {
@@ -158,6 +160,24 @@ export function LogViewer(props: LogViewerProps) {
     }
   })
 
+  createEffect(
+    on(
+      () => [
+        searchMatches(),
+      ],
+      ([
+        matches,
+      ]) => {
+        props.updateMatches?.(
+          matches
+        )
+      }
+    )
+  )
+
+
+  const [_, actions] = useSearch()
+
   // Optimize: Search functionality with proper dependency tracking
   createEffect(
     on(
@@ -173,6 +193,7 @@ export function LogViewer(props: LogViewerProps) {
           batch(() => {
             setSearchMatches([])
             setCurrentMatchIndex(0)
+            actions.goToMatch(0)
             props.onSearchMatchesChanged?.(0, -1)
           })
           return
@@ -193,6 +214,9 @@ export function LogViewer(props: LogViewerProps) {
             Number.MAX_SAFE_INTEGER
           )
 
+
+          console.log('matches', matches.length)
+
           const searchMatchesList: Array<SearchMatch> = matches.map(
             (match, index) => ({
               lineIndex: match.range.startLineNumber - 1,
@@ -205,6 +229,7 @@ export function LogViewer(props: LogViewerProps) {
           batch(() => {
             setSearchMatches(searchMatchesList)
             setCurrentMatchIndex(searchMatchesList.length > 0 ? 0 : -1)
+            actions.goToMatch(searchMatchesList.length > 0 ? 0 : -1)
             props.onSearchMatchesChanged?.(
               searchMatchesList.length,
               searchMatchesList.length > 0 ? 0 : -1,
@@ -221,6 +246,8 @@ export function LogViewer(props: LogViewerProps) {
           batch(() => {
             setSearchMatches([])
             setCurrentMatchIndex(0)
+            
+            actions.goToMatch(0)
             props.onSearchMatchesChanged?.(0, -1)
           })
         }
