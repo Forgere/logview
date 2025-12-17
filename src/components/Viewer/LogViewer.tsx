@@ -46,6 +46,8 @@ interface LogViewerProps {
   setSearchQuery?: (query: string) => void
   focusSearchInput?: () => void
   updateMatches?: (lines?: Array<SearchMatch>) => void
+  // Go to line
+  onGoToLine?: () => void
 }
 
 export function LogViewer(props: LogViewerProps) {
@@ -166,6 +168,8 @@ export function LogViewer(props: LogViewerProps) {
     // Search navigation callbacks
     onSearchNext: () => searchActions.nextMatch(),
     onSearchPrev: () => searchActions.prevMatch(),
+    // Go to line callback
+    onGoToLine: props.onGoToLine,
     onCreate: (editor) => {
       if (props.onMonacoReady) {
         const monacoIntegration = {

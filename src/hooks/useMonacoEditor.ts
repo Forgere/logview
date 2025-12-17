@@ -24,6 +24,7 @@ export interface UseMonacoEditorOptions {
   focusSearchInput?: () => void
   onSearchNext?: () => void
   onSearchPrev?: () => void
+  onGoToLine?: () => void
   onCreate?: (editor: monaco.editor.IStandaloneCodeEditor) => void
 }
 
@@ -282,6 +283,14 @@ export function useMonacoEditor(
     // Also disable other find-related shortcuts
     ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => {
       // Disable Ctrl+H (replace)
+      return null
+    })
+
+    // Handle Ctrl+G for Go to Line
+    ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyG, () => {
+      if (options.onGoToLine) {
+        options.onGoToLine()
+      }
       return null
     })
 

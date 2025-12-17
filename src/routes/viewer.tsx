@@ -384,7 +384,7 @@ function RouteComponent() {
         />
 
         <div class="flex-1 flex flex-col overflow-hidden">
-          <div class="flex-1 overflow-hidden">
+          <div class="flex-1 overflow-hidden relative">
             <LogViewer
               viewSettings={viewState.settings}
               searchOptions={{
@@ -412,15 +412,17 @@ function RouteComponent() {
               setSearchQuery={searchActions.setQuery}
               focusSearchInput={() => searchInputRef?.focus()}
               updateMatches={searchActions.updateMatches}
+              onGoToLine={() => setShowGoToLine(true)}
             />
+
+            <DragUpload
+              onFileSelect={handleFileSelect}
+              hasFiles={totalLines() > 0}
+            >
+              {/* Empty div to ensure DragUpload renders properly */}
+              <div></div>
+            </DragUpload>
           </div>
-          <DragUpload
-            onFileSelect={handleFileSelect}
-            hasFiles={totalLines() > 0}
-          >
-            {/* Empty div to ensure DragUpload renders properly */}
-            <div></div>
-          </DragUpload>
 
           {/* Marker Panel - Bottom */}
           <MarkerPanel
