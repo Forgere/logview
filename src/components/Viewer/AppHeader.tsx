@@ -12,18 +12,18 @@ import {
 
 
 export interface AppHeaderProps {
-  viewMode: 'browse'  // Only browse mode now
+  viewMode: 'browse' | 'follow'
   isStreaming: boolean
   onTogglePause?: () => void
-  watchPattern: string
-  setWatchPattern: (pattern: string) => void
+  watchPattern?: string
+  setWatchPattern?: (pattern: string) => void
   totalLines: number
   progress: number
   fileName: string | null
   fileSize: number
   onOpenShortcuts: () => void
   onFileSelect: (file: File) => void
-  onOpenWatchModal: () => void
+  onOpenWatchModal?: () => void
   onOpenSettings: () => void
   onSearchFocus: () => void
 }
