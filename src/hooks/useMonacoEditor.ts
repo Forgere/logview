@@ -22,6 +22,8 @@ export interface UseMonacoEditorOptions {
   // Search functionality access
   setSearchQuery?: (query: string) => void
   focusSearchInput?: () => void
+  onSearchNext?: () => void
+  onSearchPrev?: () => void
   onCreate?: (editor: monaco.editor.IStandaloneCodeEditor) => void
 }
 
@@ -204,6 +206,22 @@ export function useMonacoEditor(
       }
 
       return null; // Prevent default Monaco behavior
+    })
+
+    // Enter key - go to next search match
+    ed.addCommand(monaco.KeyCode.Enter, () => {
+      if (options.onSearchNext) {
+        options.onSearchNext()
+      }
+      return null
+    })
+
+    // Shift+Enter - go to previous search match
+    ed.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => {
+      if (options.onSearchPrev) {
+        options.onSearchPrev()
+      }
+      return null
     })
 
     // Also disable other find-related shortcuts

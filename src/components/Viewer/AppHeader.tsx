@@ -4,10 +4,12 @@ import {
   CircleCheck,
   CircleQuestionMark,
   Eye,
+  EyeOff,
   MousePointer2,
+  Pause,
+  Play,
   Settings,
   Terminal,
-  X,
 } from 'lucide-solid'
 
 
@@ -15,8 +17,9 @@ export interface AppHeaderProps {
   viewMode: 'browse' | 'follow'
   isStreaming: boolean
   onTogglePause?: () => void
+  onToggleViewMode?: () => void
   watchPattern?: string
-  setWatchPattern?: (pattern: string) => void
+  watchActive?: boolean
   totalLines: number
   progress: number
   fileName: string | null
@@ -24,6 +27,7 @@ export interface AppHeaderProps {
   onOpenShortcuts: () => void
   onFileSelect: (file: File) => void
   onOpenWatchModal?: () => void
+  onStopWatch?: () => void
   onOpenSettings: () => void
   onSearchFocus: () => void
 }
@@ -53,6 +57,17 @@ export function AppHeader(props: AppHeaderProps) {
 
   // Optimize: Memoize expensive status computation
   const status = createMemo(() => {
+    // Watch mode active
+    if (props.watchActive && props.watchPattern) {
+      return {
+        label: 'WATCHING',
+        subLabel: `"${props.watchPattern}"`,
+        icon: () => <Eye size={14} class="animate-pulse" />,
+        color: 'text-amber-400',
+        borderColor: 'border-amber-900/50',
+      }
+    }
+
     if (!props.isStreaming) {
       return {
         label: 'FINISHED',
@@ -63,10 +78,20 @@ export function AppHeader(props: AppHeaderProps) {
       }
     }
 
-    // Always show as loading since follow mode is removed
+    // Follow vs Browse mode during streaming
+    if (props.viewMode === 'follow') {
+      return {
+        label: 'FOLLOWING',
+        subLabel: '(Live)',
+        icon: () => <CircleArrowDown size={14} class="animate-bounce" />,
+        color: 'text-green-400',
+        borderColor: 'border-green-900/50',
+      }
+    }
+
     return {
-      label: 'LOADING',
-      subLabel: '(Loading...)',
+      label: 'BROWSING',
+      subLabel: '(Paused view)',
       icon: () => <MousePointer2 size={14} />,
       color: 'text-yellow-400',
       borderColor: 'border-yellow-900/50',
@@ -102,16 +127,59 @@ export function AppHeader(props: AppHeaderProps) {
               <span>HyperLog</span>
             </div>
 
+            {/* View Mode Toggle - show during streaming or when file is loaded */}
+            <Show when={props.fileName}>
+              <div class="flex items-center gap-2 border-l border-[#333] pl-4">
+                {/* Follow/Browse Toggle */}
+                <Show when={props.isStreaming}>
+                  <button
+                    onClick={props.onToggleViewMode}
+                    class={`flex items-center gap-1.5 px-2 py-1 text-xs rounded border transition-colors ${
+                      props.viewMode === 'follow'
+                        ? 'bg-green-900/30 text-green-400 border-green-700 hover:bg-green-900/50'
+                        : 'bg-gray-800 text-gray-400 border-gray-600 hover:bg-gray-700'
+                    }`}
+                    title={props.viewMode === 'follow' ? 'Switch to Browse mode' : 'Switch to Follow mode'}
+                  >
+                    {props.viewMode === 'follow' ? <Eye size={12} /> : <EyeOff size={12} />}
+                    {props.viewMode === 'follow' ? 'Following' : 'Browse'}
+                  </button>
+                </Show>
 
-            {/* Pause/Resume button during streaming */}
-            <Show when={props.isStreaming && props.onTogglePause}>
-              <div class="flex items-center gap-2 ml-4 border-l border-[#333] pl-4">
-                <button
-                  onClick={props.onTogglePause}
-                  class="px-2 py-1 text-xs rounded bg-red-900/30 text-red-400 border border-red-700 hover:bg-red-900/50 transition-colors"
-                >
-                  {props.isStreaming ? 'Pause' : 'Resume'}
-                </button>
+                {/* Pause/Resume button during streaming */}
+                <Show when={props.isStreaming && props.onTogglePause}>
+                  <button
+                    onClick={props.onTogglePause}
+                    class="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-red-900/30 text-red-400 border border-red-700 hover:bg-red-900/50 transition-colors"
+                  >
+                    <Pause size={12} />
+                    Pause
+                  </button>
+                </Show>
+
+                {/* Resume button when paused */}
+                <Show when={!props.isStreaming && props.progress < 100 && props.onTogglePause}>
+                  <button
+                    onClick={props.onTogglePause}
+                    class="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-green-900/30 text-green-400 border border-green-700 hover:bg-green-900/50 transition-colors"
+                  >
+                    <Play size={12} />
+                    Resume
+                  </button>
+                </Show>
+
+                {/* Watch indicator and stop button */}
+                <Show when={props.watchActive && props.watchPattern}>
+                  <button
+                    onClick={props.onStopWatch}
+                    class="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-amber-900/30 text-amber-400 border border-amber-700 hover:bg-amber-900/50 transition-colors"
+                    title="Stop watching"
+                  >
+                    <Eye size={12} class="animate-pulse" />
+                    <span class="max-w-[100px] truncate">"{props.watchPattern}"</span>
+                    <span class="text-amber-600">×</span>
+                  </button>
+                </Show>
               </div>
             </Show>
           </div>

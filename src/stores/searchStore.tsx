@@ -54,7 +54,7 @@ export function SearchProvider(props: ParentProps) {
       wholeWord: false,
     },
     matches: [],
-    currentMatchIndex: -1,
+    currentMatchIndex: 0,
   })
 
   // Derived: current match
@@ -94,6 +94,11 @@ export function SearchProvider(props: ParentProps) {
   const actions: SearchActions = {
     setQuery: (query: string) => {
       setState('options', 'query', query)
+      // Reset to first match when query changes
+      if (!query) {
+        setState('currentMatchIndex', 0)
+        setState('matches', [])
+      }
     },
 
     setIsRegex: (isRegex: boolean) => {
@@ -113,91 +118,56 @@ export function SearchProvider(props: ParentProps) {
     },
 
     updateMatches: (lines?: Array<SearchMatch>) => {
-
-      setState({
-        matches: lines
-      })
+      setState('matches', lines || [])
+      // Reset index if matches changed and current index is out of bounds
+      if (lines && state.currentMatchIndex >= lines.length) {
+        setState('currentMatchIndex', lines.length > 0 ? 0 : 0)
+      }
     },
 
     nextMatch: () => {
-      // Try Monaco's native search first if available
-      if (state.monacoIntegration) {
-        const success = state.monacoIntegration.findNext(state.options.query, {
-          regex: state.options.isRegex,
-          caseSensitive: state.options.caseSensitive,
-          wholeWord: state.options.wholeWord,
-        })
-        if (success) {
-          // Monaco found a match, update our index to track it
-          if (state.matches.length > 0) {
-            const nextIndex =
-              state.currentMatchIndex < state.matches.length - 1
-                ? state.currentMatchIndex + 1
-                : 0
-            setState('currentMatchIndex', nextIndex)
-          }
-          return
-        }
-      }
-
-      // Fall back to manual search
       if (state.matches.length === 0) return
+
       const nextIndex =
         state.currentMatchIndex < state.matches.length - 1
           ? state.currentMatchIndex + 1
           : 0
-      console.log('Next match index:', nextIndex)
+
       setState('currentMatchIndex', nextIndex)
 
-      // Scroll to match if Monaco integration available
+      // Scroll to match using Monaco integration
       if (state.monacoIntegration) {
         const match = state.matches[nextIndex]
-        state.monacoIntegration.scrollToLine(match.lineIndex + 1, true)
+        if (match) {
+          state.monacoIntegration.scrollToLine(match.lineIndex + 1, true)
+        }
       }
     },
 
     prevMatch: () => {
-      // Try Monaco's native search first if available
-      if (state.monacoIntegration) {
-        const success = state.monacoIntegration.findPrevious(
-          state.options.query,
-          {
-            regex: state.options.isRegex,
-            caseSensitive: state.options.caseSensitive,
-            wholeWord: state.options.wholeWord,
-          },
-        )
-        if (success) {
-          // Monaco found a match, update our index to track it
-          if (state.matches.length > 0) {
-            const prevIndex =
-              state.currentMatchIndex > 0
-                ? state.currentMatchIndex - 1
-                : state.matches.length - 1
-            setState('currentMatchIndex', prevIndex)
-          }
-          return
-        }
-      }
-
-      // Fall back to manual search
       if (state.matches.length === 0) return
+
       const prevIndex =
         state.currentMatchIndex > 0
           ? state.currentMatchIndex - 1
           : state.matches.length - 1
+
       setState('currentMatchIndex', prevIndex)
 
-      // Scroll to match if Monaco integration available
+      // Scroll to match using Monaco integration
       if (state.monacoIntegration) {
         const match = state.matches[prevIndex]
-        state.monacoIntegration.scrollToLine(match.lineIndex + 1, true)
+        if (match) {
+          state.monacoIntegration.scrollToLine(match.lineIndex + 1, true)
+        }
       }
     },
 
     goToMatch: (index: number) => {
       if (index >= 0 && index < state.matches.length) {
         setState('currentMatchIndex', index)
+      } else if (state.matches.length === 0) {
+        setState('currentMatchIndex', 0)
       }
     },
 
@@ -210,7 +180,7 @@ export function SearchProvider(props: ParentProps) {
           wholeWord: false,
         },
         matches: [],
-        currentMatchIndex: -1,
+        currentMatchIndex: 0,
       })
     },
   }

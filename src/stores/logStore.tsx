@@ -5,30 +5,44 @@ import type { FileInfo, ViewMode, ViewSettings, WatchMode } from '~/types'
 import { FileStreamer } from '~/services/fileStreamService'
 import type * as monaco from 'monaco-editor'
 
+interface WatchState {
+  pattern: string
+  mode: WatchMode
+  isActive: boolean
+  matchedLines: number[]
+}
+
 interface LogState {
   file: FileInfo | null
   isStreaming: boolean
   progress: number
-  viewMode: ViewMode // Always 'browse' mode now
+  viewMode: ViewMode
   lastScrollRequest: number
   lineCount: number
+  watch: WatchState
 }
 
 interface LogActions {
   loadFile: (file: File, newLineConfig: ViewSettings['newLineConfig']) => void
   reset: () => void
+  setViewMode: (mode: ViewMode) => void
   setWatchPattern: (pattern: string) => void
   setWatchMode: (mode: WatchMode) => void
-  setWatchMatchIndex: (index: number | null) => void
-  clearPendingWatchMatches: () => void
+  startWatch: () => void
+  stopWatch: () => void
+  clearWatchMatches: () => void
   togglePause: () => void
 }
+
+// Callback for watch matches - to be set by viewer
+type WatchMatchCallback = (lineNumber: number, line: string) => void
 
 interface LogStoreContext {
   state: LogState
   actions: LogActions
   monacoEditor: monaco.editor.IStandaloneCodeEditor | null
   setMonacoEditor: (editor: monaco.editor.IStandaloneCodeEditor | null) => void
+  setWatchMatchCallback: (cb: WatchMatchCallback | null) => void
 }
 
 const LogContext = createContext<LogStoreContext | null>(null)
@@ -38,15 +52,57 @@ export function LogProvider(props: ParentProps) {
   let pendingBuffer: string[] = []
   let monacoInstance: monaco.editor.IStandaloneCodeEditor | null = null
   let newLineConfig: ViewSettings['newLineConfig'] | null = null
+  let watchMatchCallback: WatchMatchCallback | null = null
+  let currentLineNumber = 0
 
   const [state, setState] = createStore<LogState>({
     file: null,
     isStreaming: false,
     progress: 0,
-    viewMode: 'browse',
+    viewMode: 'follow',
     lastScrollRequest: 0,
     lineCount: 0,
+    watch: {
+      pattern: '',
+      mode: 'PAUSE_ALL',
+      isActive: false,
+      matchedLines: [],
+    },
   })
+
+  // Check line for watch pattern match
+  const checkWatchMatch = (line: string, lineNumber: number) => {
+    if (!state.watch.isActive || !state.watch.pattern) return
+
+    try {
+      const regex = new RegExp(state.watch.pattern, 'i')
+      if (regex.test(line)) {
+        // Add to matched lines
+        setState('watch', 'matchedLines', (prev) => [...prev, lineNumber])
+
+        if (state.watch.mode === 'PAUSE_ALL') {
+          // Pause streaming and switch to browse mode
+          if (streamer) {
+            streamer.pause()
+            setState('isStreaming', false)
+          }
+          setState('viewMode', 'browse')
+
+          // Scroll to matched line
+          if (monacoInstance) {
+            monacoInstance.revealLineInCenter(lineNumber)
+          }
+        }
+
+        // Notify callback for MARK_ONLY mode or additional handling
+        if (watchMatchCallback) {
+          watchMatchCallback(lineNumber, line)
+        }
+      }
+    } catch {
+      // Invalid regex, ignore
+    }
+  }
 
   // Process chunk according to newLineConfig
   const processChunk = (chunk: string[]): string[] => {
@@ -97,6 +153,12 @@ export function LogProvider(props: ParentProps) {
     const atBottom = scrollTop + layoutInfo.height >= monacoInstance.getScrollHeight() - 5
     const startLine = model.getLineCount() + 1
 
+    // Check each line for watch matches before adding
+    chunk.forEach((line, idx) => {
+      const lineNum = startLine + idx
+      checkWatchMatch(line, lineNum)
+    })
+
     const BATCH_SIZE = 1000
     let index = 0
 
@@ -125,10 +187,11 @@ export function LogProvider(props: ParentProps) {
           requestAnimationFrame(processBatch)
         }
       } else {
-        // 批处理完成，更新行数
+        // Batch complete, update line count
         setState('lineCount', model.getLineCount())
+        currentLineNumber = model.getLineCount()
 
-        // 保持滚动逻辑
+        // Scroll logic
         if (state.viewMode === 'follow' || atBottom) {
           monacoInstance?.setScrollTop(monacoInstance.getScrollHeight())
         } else {
@@ -145,6 +208,7 @@ export function LogProvider(props: ParentProps) {
     loadFile: (file, config) => {
       actions.reset()
       newLineConfig = config
+      currentLineNumber = 0
 
       setState({
         file: {
@@ -154,7 +218,7 @@ export function LogProvider(props: ParentProps) {
           extension: '.' + file.name.split('.').pop(),
         },
         isStreaming: true,
-        viewMode: 'browse',
+        viewMode: 'follow',
         progress: 0,
         lineCount: 0,
         lastScrollRequest: 0,
@@ -171,6 +235,7 @@ export function LogProvider(props: ParentProps) {
         onComplete: () => {
           flushBuffer()
           setState('isStreaming', false)
+          setState('viewMode', 'browse')
         },
         onError: (err) => {
           console.error(err)
@@ -184,14 +249,21 @@ export function LogProvider(props: ParentProps) {
       streamer = null
       pendingBuffer = []
       newLineConfig = null
+      currentLineNumber = 0
 
       setState({
         file: null,
         isStreaming: false,
         progress: 0,
-        viewMode: 'browse',
+        viewMode: 'follow',
         lastScrollRequest: 0,
         lineCount: 0,
+        watch: {
+          pattern: '',
+          mode: 'PAUSE_ALL',
+          isActive: false,
+          matchedLines: [],
+        },
       })
 
       if (monacoInstance) {
@@ -200,14 +272,46 @@ export function LogProvider(props: ParentProps) {
       }
     },
 
+    setViewMode: (mode: ViewMode) => {
+      setState('viewMode', mode)
+      if (mode === 'follow' && monacoInstance) {
+        monacoInstance.setScrollTop(monacoInstance.getScrollHeight())
+      }
+    },
+
+    setWatchPattern: (pattern: string) => {
+      setState('watch', 'pattern', pattern)
+    },
+
+    setWatchMode: (mode: WatchMode) => {
+      setState('watch', 'mode', mode)
+    },
+
+    startWatch: () => {
+      if (state.watch.pattern) {
+        setState('watch', 'isActive', true)
+        setState('watch', 'matchedLines', [])
+      }
+    },
+
+    stopWatch: () => {
+      setState('watch', 'isActive', false)
+    },
+
+    clearWatchMatches: () => {
+      setState('watch', 'matchedLines', [])
+    },
+
     togglePause: () => {
       if (!streamer) return
       if (state.isStreaming) {
         streamer.pause()
         setState('isStreaming', false)
+        setState('viewMode', 'browse')
       } else {
         streamer.resume()
         setState('isStreaming', true)
+        setState('viewMode', 'follow')
       }
     },
   }
@@ -219,7 +323,10 @@ export function LogProvider(props: ParentProps) {
       monacoEditor: monacoInstance,
       setMonacoEditor: (editor: monaco.editor.IStandaloneCodeEditor | null) => {
         monacoInstance = editor
-      }
+      },
+      setWatchMatchCallback: (cb: WatchMatchCallback | null) => {
+        watchMatchCallback = cb
+      },
     }}>
       {props.children}
     </LogContext.Provider>

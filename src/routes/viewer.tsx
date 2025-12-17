@@ -7,10 +7,9 @@ import {
   onMount,
 } from 'solid-js'
 import type {
-  HighlightRule,
   LogMarker,
   MarkerRange,
-  ViewSettings,
+  WatchMode,
 } from '~/types'
 import { AppHeader } from '~/components/Viewer/AppHeader'
 import { SearchBar } from '~/components/Viewer/SearchBar'
@@ -18,16 +17,23 @@ import { LogViewer } from '~/components/Viewer/LogViewer'
 import { DragUpload } from '~/components/Viewer/DragUpload'
 import { LogProvider, useLog } from '~/stores/logStore'
 import { SearchProvider, useSearch } from '~/stores/searchStore'
-import { DEFAULT_HIGHLIGHT_RULES, DEFAULT_VIEW_SETTINGS } from '~/types'
+import { ViewProvider, useView } from '~/stores/viewStore'
 import { GoToLineModal } from '~/components/modals/GoToLineModal'
 import { ShortcutsModal } from '~/components/modals/ShortcutsModal'
+import { SettingsModal } from '~/components/modals/SettingsModal'
+import { HighlightSettingsModal } from '~/components/modals/HighlightSettingsModal'
+import { WatchSettingsModal } from '~/components/modals/WatchSettingsModal'
+import { CompareModal } from '~/components/modals/CompareModal'
+import { AnalysisModal } from '~/components/modals/AnalysisModal'
 import { MarkerPanel } from '~/components/panels/MarkerPanel'
 
 export const Route = createFileRoute('/viewer')({
   component: () => (
     <LogProvider>
       <SearchProvider>
-        <RouteComponent />
+        <ViewProvider>
+          <RouteComponent />
+        </ViewProvider>
       </SearchProvider>
     </LogProvider>
   ),
@@ -36,10 +42,22 @@ export const Route = createFileRoute('/viewer')({
 function RouteComponent() {
   const { state: logState, actions: logActions, setMonacoEditor } = useLog()
   const [searchState, searchActions, searchDerived] = useSearch()
+  const [viewState, viewActions] = useView()
 
   // Layout state
   const [isMarkerPanelOpen, setIsMarkerPanelOpen] = createSignal(true)
+
+  // Modal state
   const [showWatchModal, setShowWatchModal] = createSignal(false)
+  const [showSettings, setShowSettings] = createSignal(false)
+  const [showShortcuts, setShowShortcuts] = createSignal(false)
+  const [showGoToLine, setShowGoToLine] = createSignal(false)
+  const [showHighlightSettings, setShowHighlightSettings] = createSignal(false)
+  const [showCompare, setShowCompare] = createSignal(false)
+  const [showAnalysis, setShowAnalysis] = createSignal(false)
+
+  // Watch state
+  const [watchPattern, setWatchPattern] = createSignal('')
 
   // Virtual scrolling state
   const [visibleRange, setVisibleRange] = createSignal({
@@ -57,19 +75,9 @@ function RouteComponent() {
   // Viewer state - Use logState as single source of truth with direct updates
   // View mode is now always 'browse', so no mode switching
 
-  const [viewSettings] = createSignal<ViewSettings>(DEFAULT_VIEW_SETTINGS)
-
   // Marker state
   const [markers, setMarkers] = createSignal<Array<LogMarker>>([])
   const [selectedMarkerIds, setSelectedMarkerIds] = createSignal<Set<string>>(new Set())
-  const [highlightRules] = createSignal<Array<HighlightRule>>(
-    DEFAULT_HIGHLIGHT_RULES,
-  )
-
-  // Modals and UI state
-  const [showSettings, setShowSettings] = createSignal(false)
-  const [showShortcuts, setShowShortcuts] = createSignal(false)
-  const [showGoToLine, setShowGoToLine] = createSignal(false)
 
   let searchInputRef: HTMLInputElement | undefined
   let monacoEditorRef: any = null
@@ -99,8 +107,30 @@ function RouteComponent() {
     // Reset virtual scrolling state
     setVisibleRange({ start: 0, end: 1000 })
 
+    // Load config for file extension
+    viewActions.loadForFile(file.name)
+
     // Use the log store's loadFile action instead of custom implementation
-    logActions.loadFile(file, viewSettings().newLineConfig)
+    logActions.loadFile(file, viewState.settings.newLineConfig)
+  }
+
+  // Watch mode handler
+  const handleStartWatch = (pattern: string, mode: WatchMode) => {
+    setWatchPattern(pattern)
+    logActions.setWatchPattern(pattern)
+    logActions.setWatchMode(mode)
+    logActions.startWatch()
+  }
+
+  const handleStopWatch = () => {
+    logActions.stopWatch()
+    setWatchPattern('')
+  }
+
+  // View mode toggle handler
+  const handleToggleViewMode = () => {
+    const newMode = logState.viewMode === 'follow' ? 'browse' : 'follow'
+    logActions.setViewMode(newMode)
   }
 
   // Search functionality - since content is in Monaco now, we'll handle search updates differently
@@ -241,6 +271,22 @@ function RouteComponent() {
           setShowSettings(false)
           return
         }
+        if (showHighlightSettings()) {
+          setShowHighlightSettings(false)
+          return
+        }
+        if (showWatchModal()) {
+          setShowWatchModal(false)
+          return
+        }
+        if (showCompare()) {
+          setShowCompare(false)
+          return
+        }
+        if (showAnalysis()) {
+          setShowAnalysis(false)
+          return
+        }
         // Clear search
         searchActions.setQuery('')
         searchInputRef?.blur()
@@ -268,8 +314,12 @@ function RouteComponent() {
       >
         <AppHeader
           viewMode={logState.viewMode}
-          isStreaming={logState.progress < 100} // File is still loading
+          isStreaming={logState.isStreaming}
           onTogglePause={logActions.togglePause}
+          onToggleViewMode={handleToggleViewMode}
+          watchPattern={logState.watch.pattern}
+          watchActive={logState.watch.isActive}
+          onStopWatch={handleStopWatch}
           totalLines={totalLines()}
           progress={logState.progress}
           fileName={logState.file?.name || null}
@@ -293,14 +343,14 @@ function RouteComponent() {
           currentResultIndex={searchState.currentMatchIndex}
           onNext={handleNextSearch}
           onPrev={handlePrevSearch}
-          onOpenHighlights={() => console.log('Open highlights modal')}
+          onOpenHighlights={() => setShowHighlightSettings(true)}
           inputRef={searchInputRef}
         />
 
         <div class="flex-1 flex flex-col overflow-hidden">
           <div class="flex-1 overflow-hidden">
             <LogViewer
-              viewSettings={viewSettings()}
+              viewSettings={viewState.settings}
               searchOptions={{
                 query: searchDerived.searchQuery(),
                 isRegex: searchState.options.isRegex,
@@ -315,7 +365,7 @@ function RouteComponent() {
                 setMonacoEditor(editor)
                 searchActions.setMonacoIntegration(monacoIntegration)
               }}
-              customHighlights={highlightRules()}
+              customHighlights={viewState.highlightRules}
               markers={markers()}
               onAddMarker={handleAddMarker}
               onSelectionChange={handleSelectionChange}
@@ -342,8 +392,8 @@ function RouteComponent() {
             onToggleSelect={handleToggleSelectMarker}
             onSelectAll={handleSelectAllMarkers}
             onDeselectAll={handleDeselectAllMarkers}
-            onAnalyze={() => console.log('TODO: Analyze')}
-            onCompare={() => console.log('TODO: Compare')}
+            onAnalyze={() => setShowAnalysis(true)}
+            onCompare={() => setShowCompare(true)}
             onCopy={handleCopyMarkers}
             onDelete={handleBulkDeleteMarkers}
             onDeleteMarker={handleDeleteMarker}
@@ -366,6 +416,46 @@ function RouteComponent() {
         <ShortcutsModal
           isOpen={showShortcuts()}
           onClose={() => setShowShortcuts(false)}
+        />
+
+        <SettingsModal
+          isOpen={showSettings()}
+          onClose={() => setShowSettings(false)}
+          viewSettings={viewState.settings}
+          setViewSettings={(settings) => viewActions.updateSettings(settings)}
+          currentExtension={viewState.currentExtension}
+        />
+
+        <HighlightSettingsModal
+          isOpen={showHighlightSettings()}
+          onClose={() => setShowHighlightSettings(false)}
+          rules={viewState.highlightRules}
+          setRules={(rules) => {
+            // Clear existing and set new rules
+            viewState.highlightRules.forEach(r => viewActions.removeHighlightRule(r.id))
+            rules.forEach(r => viewActions.addHighlightRule(r))
+          }}
+        />
+
+        <WatchSettingsModal
+          isOpen={showWatchModal()}
+          onClose={() => setShowWatchModal(false)}
+          onStartWatch={handleStartWatch}
+          currentPattern={watchPattern()}
+        />
+
+        <CompareModal
+          isOpen={showCompare()}
+          onClose={() => setShowCompare(false)}
+          markers={markers()}
+          selectedIds={selectedMarkerIds()}
+        />
+
+        <AnalysisModal
+          isOpen={showAnalysis()}
+          onClose={() => setShowAnalysis(false)}
+          markers={markers()}
+          selectedIds={selectedMarkerIds()}
         />
 
       </ErrorBoundary>

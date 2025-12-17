@@ -68,33 +68,34 @@ React 源码位置: `../HyperLog/`
 
 ## 待完善功能
 
-### 集成与连接
+### 集成与连接 ✅
 
-- [ ] **SettingsModal 集成** - 将 SettingsModal 连接到 viewer.tsx
-- [ ] **HighlightSettingsModal 集成** - 将高亮设置连接到 SearchBar
-- [ ] **WatchSettingsModal 集成** - 将 Watch 模式连接到 MarkerPanel
-- [ ] **CompareModal 集成** - 将对比功能连接到 MarkerPanel
-- [ ] **AnalysisModal 集成** - 将分析功能连接到 MarkerPanel
+- [x] **SettingsModal 集成** - 将 SettingsModal 连接到 viewer.tsx
+- [x] **HighlightSettingsModal 集成** - 将高亮设置连接到 SearchBar
+- [x] **WatchSettingsModal 集成** - 将 Watch 模式连接到 MarkerPanel
+- [x] **CompareModal 集成** - 将对比功能连接到 MarkerPanel
+- [x] **AnalysisModal 集成** - 将分析功能连接到 MarkerPanel
+- [x] **ViewProvider 集成** - 将 viewStore 连接到 viewer.tsx
 
-### 高级功能
+### 高级功能 ✅
 
-- [ ] **Watch 模式逻辑** - 在 logStore 中实现 watch 匹配逻辑
+- [x] **Watch 模式逻辑** - 在 logStore 中实现 watch 匹配逻辑
   - `PAUSE_ALL` - 匹配时暂停并跳转
   - `MARK_ONLY` - 匹配时自动添加标记
 
-- [ ] **Follow 模式** - 自动滚动到底部
-  - 当前只有 browse 模式
-  - 需要恢复 follow 模式和切换逻辑
+- [x] **Follow 模式** - 自动滚动到底部
+  - Follow/Browse 模式切换
+  - 流式加载时自动跟随
 
-### Header 功能完善
+### Header 功能完善 ✅
 
-- [ ] **Watch 状态显示** - Header 显示 WATCHING 状态和模式
-- [ ] **Follow/Browse 切换** - 视图模式切换按钮
+- [x] **Watch 状态显示** - Header 显示 WATCHING 状态和模式
+- [x] **Follow/Browse 切换** - 视图模式切换按钮
 
 ---
 
 ## 统计
 
-- **组件已完成**: 21 项
-- **待集成/完善**: 7 项
-- **完成度**: ~75%
+- **组件已完成**: 31 项
+- **待集成/完善**: 0 项
+- **完成度**: ~100%

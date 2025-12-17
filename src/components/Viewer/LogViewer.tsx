@@ -1,4 +1,4 @@
-import { Show, batch, createEffect, createSignal, on } from 'solid-js'
+import { Show, batch, createEffect, createMemo, createSignal, on } from 'solid-js'
 import { Bookmark } from 'lucide-solid'
 import type {
   HighlightRule,
@@ -43,7 +43,6 @@ export function LogViewer(props: LogViewerProps) {
   let editorContainerRef: HTMLDivElement | undefined
 
   const [searchMatches, setSearchMatches] = createSignal<Array<SearchMatch>>([])
-  const [currentMatchIndex, setCurrentMatchIndex] = createSignal(0)
   const [markerLines, setMarkerLines] = createSignal<Array<number>>([])
   const [floatingBtn, setFloatingBtn] = createSignal<{
     x: number
@@ -51,6 +50,12 @@ export function LogViewer(props: LogViewerProps) {
     range: any
     text: string
   } | null>(null)
+
+  // Get search store for syncing currentMatchIndex
+  const [searchState, searchActions] = useSearch()
+
+  // Use searchStore's currentMatchIndex for decorations
+  const currentMatchIndex = createMemo(() => searchState.currentMatchIndex)
 
   // Optimize: Update marker lines with batch updates
   createEffect(
@@ -148,6 +153,9 @@ export function LogViewer(props: LogViewerProps) {
     // Pass search functions to Monaco editor from props
     setSearchQuery: props.setSearchQuery,
     focusSearchInput: props.focusSearchInput,
+    // Search navigation callbacks
+    onSearchNext: () => searchActions.nextMatch(),
+    onSearchPrev: () => searchActions.prevMatch(),
     onCreate: (editor) => {
       if (props.onMonacoReady) {
         const monacoIntegration = {
@@ -175,9 +183,6 @@ export function LogViewer(props: LogViewerProps) {
     )
   )
 
-
-  const [_, actions] = useSearch()
-
   // Optimize: Search functionality with proper dependency tracking
   createEffect(
     on(
@@ -192,8 +197,7 @@ export function LogViewer(props: LogViewerProps) {
         if (!query || !monacoAPI.editor()) {
           batch(() => {
             setSearchMatches([])
-            setCurrentMatchIndex(0)
-            actions.goToMatch(0)
+            searchActions.goToMatch(0)
             props.onSearchMatchesChanged?.(0, -1)
           })
           return
@@ -214,9 +218,6 @@ export function LogViewer(props: LogViewerProps) {
             Number.MAX_SAFE_INTEGER
           )
 
-
-          console.log('matches', matches.length)
-
           const searchMatchesList: Array<SearchMatch> = matches.map(
             (match, index) => ({
               lineIndex: match.range.startLineNumber - 1,
@@ -228,8 +229,7 @@ export function LogViewer(props: LogViewerProps) {
 
           batch(() => {
             setSearchMatches(searchMatchesList)
-            setCurrentMatchIndex(searchMatchesList.length > 0 ? 0 : -1)
-            actions.goToMatch(searchMatchesList.length > 0 ? 0 : -1)
+            searchActions.goToMatch(searchMatchesList.length > 0 ? 0 : 0)
             props.onSearchMatchesChanged?.(
               searchMatchesList.length,
               searchMatchesList.length > 0 ? 0 : -1,
@@ -245,9 +245,7 @@ export function LogViewer(props: LogViewerProps) {
           console.error('Search error:', error)
           batch(() => {
             setSearchMatches([])
-            setCurrentMatchIndex(0)
-            
-            actions.goToMatch(0)
+            searchActions.goToMatch(0)
             props.onSearchMatchesChanged?.(0, -1)
           })
         }
