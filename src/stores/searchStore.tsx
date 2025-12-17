@@ -10,7 +10,12 @@ interface MonacoSearchIntegration {
   findPrevious: (query: string, options?: any) => boolean
   scrollToLine: (line: number, center?: boolean) => void
   scrollToPosition: (line: number, column: number, center?: boolean) => void
-  setSelection: (startLine: number, startCol: number, endLine: number, endCol: number) => void
+  setSelection: (
+    startLine: number,
+    startCol: number,
+    endLine: number,
+    endCol: number,
+  ) => void
 }
 
 interface SearchState {
@@ -140,13 +145,11 @@ export function SearchProvider(props: ParentProps) {
       // Scroll to match and select it using Monaco integration
       if (state.monacoIntegration) {
         const match = state.matches[nextIndex]
-        if (match) {
-          const line = match.lineIndex + 1
-          const startCol = (match.startColumn ?? 0) + 1
-          const endCol = (match.endColumn ?? match.startColumn ?? 0) + 1
-          state.monacoIntegration.scrollToPosition(line, startCol, true)
-          state.monacoIntegration.setSelection(line, startCol, line, endCol)
-        }
+        const line = match.lineIndex + 1
+        const startCol = (match.startColumn ?? 0) + 1
+        const endCol = (match.endColumn ?? match.startColumn ?? 0) + 1
+        state.monacoIntegration.scrollToPosition(line, startCol, true)
+        state.monacoIntegration.setSelection(line, startCol, line, endCol)
       }
     },
 
@@ -163,13 +166,11 @@ export function SearchProvider(props: ParentProps) {
       // Scroll to match and select it using Monaco integration
       if (state.monacoIntegration) {
         const match = state.matches[prevIndex]
-        if (match) {
-          const line = match.lineIndex + 1
-          const startCol = (match.startColumn ?? 0) + 1
-          const endCol = (match.endColumn ?? match.startColumn ?? 0) + 1
-          state.monacoIntegration.scrollToPosition(line, startCol, true)
-          state.monacoIntegration.setSelection(line, startCol, line, endCol)
-        }
+        const line = match.lineIndex + 1
+        const startCol = (match.startColumn ?? 0) + 1
+        const endCol = (match.endColumn ?? match.startColumn ?? 0) + 1
+        state.monacoIntegration.scrollToPosition(line, startCol, true)
+        state.monacoIntegration.setSelection(line, startCol, line, endCol)
       }
     },
 

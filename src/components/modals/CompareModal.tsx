@@ -1,6 +1,14 @@
-import { For, Show, createEffect, createMemo, createSignal, on, onCleanup } from 'solid-js'
-import { Modal } from '~/components/ui/Modal'
+import {
+  For,
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+} from 'solid-js'
 import type { LogMarker } from '~/types'
+import { Modal } from '~/components/ui/Modal'
 import { diffChars } from '~/services/diffService'
 
 interface CompareModalProps {
@@ -13,11 +21,15 @@ interface CompareModalProps {
 const ITEM_HEIGHT = 56
 
 export function CompareModal(props: CompareModalProps) {
-  const [compareIndices, setCompareIndices] = createSignal<[number, number]>([0, 0])
+  const [compareIndices, setCompareIndices] = createSignal<[number, number]>([
+    0, 0,
+  ])
   let listRef: HTMLDivElement | undefined
 
   const sortedMarkers = createMemo(() =>
-    [...props.markers].sort((a, b) => a.range.startLineNumber - b.range.startLineNumber),
+    [...props.markers].sort(
+      (a, b) => a.range.startLineNumber - b.range.startLineNumber,
+    ),
   )
 
   // Initialize selection on open
@@ -27,7 +39,7 @@ export function CompareModal(props: CompareModalProps) {
       (isOpen) => {
         if (isOpen) {
           const markers = sortedMarkers()
-          const indices: number[] = []
+          const indices: Array<number> = []
           markers.forEach((m, idx) => {
             if (props.selectedIds.has(m.id)) indices.push(idx)
           })
@@ -133,7 +145,9 @@ export function CompareModal(props: CompareModalProps) {
                 <div
                   class={`border-b border-[#333] flex flex-col justify-center px-4 hover:bg-[#1f1f1f] transition-colors cursor-pointer group ${isLeft() || isRight() ? 'bg-[#1f1f1f]' : ''}`}
                   style={{ height: `${ITEM_HEIGHT}px` }}
-                  onClick={() => setCompareIndices([compareIndices()[0], idx()])}
+                  onClick={() =>
+                    setCompareIndices([compareIndices()[0], idx()])
+                  }
                 >
                   <div class="flex items-center justify-between mb-1">
                     <span
@@ -187,7 +201,9 @@ export function CompareModal(props: CompareModalProps) {
                 <div class="w-5 h-5 rounded bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
                   A
                 </div>
-                <span class="text-xs font-bold text-gray-400 uppercase">Base</span>
+                <span class="text-xs font-bold text-gray-400 uppercase">
+                  Base
+                </span>
                 <Show when={left()}>
                   <span class="text-xs text-gray-500 font-mono ml-2">
                     Line {left()?.range.startLineNumber}
@@ -199,16 +215,18 @@ export function CompareModal(props: CompareModalProps) {
               <div class="font-mono text-sm leading-6 text-gray-300 whitespace-pre-wrap break-all">
                 <Show
                   when={diffResult()}
-                  fallback={<span class="text-gray-600 italic">Select a marker...</span>}
+                  fallback={
+                    <span class="text-gray-600 italic">Select a marker...</span>
+                  }
                 >
-                  <For each={diffResult()!}>
+                  <For each={diffResult()}>
                     {(part, i) => (
                       <Show when={part.type === 'equal'}>
                         <span class="opacity-80">{part.value}</span>
                       </Show>
                     )}
                   </For>
-                  <For each={diffResult()!}>
+                  <For each={diffResult()}>
                     {(part) => (
                       <Show when={part.type === 'delete'}>
                         <span class="bg-red-500/20 text-red-200 border-b border-red-500/40">
@@ -229,7 +247,9 @@ export function CompareModal(props: CompareModalProps) {
                 <div class="w-5 h-5 rounded bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">
                   B
                 </div>
-                <span class="text-xs font-bold text-gray-400 uppercase">Target</span>
+                <span class="text-xs font-bold text-gray-400 uppercase">
+                  Target
+                </span>
                 <Show when={right()}>
                   <span class="text-xs text-gray-500 font-mono ml-2">
                     Line {right()?.range.startLineNumber}
@@ -241,16 +261,18 @@ export function CompareModal(props: CompareModalProps) {
               <div class="font-mono text-sm leading-6 text-gray-300 whitespace-pre-wrap break-all">
                 <Show
                   when={diffResult()}
-                  fallback={<span class="text-gray-600 italic">Select a marker...</span>}
+                  fallback={
+                    <span class="text-gray-600 italic">Select a marker...</span>
+                  }
                 >
-                  <For each={diffResult()!}>
+                  <For each={diffResult()}>
                     {(part) => (
                       <Show when={part.type === 'equal'}>
                         <span class="opacity-80">{part.value}</span>
                       </Show>
                     )}
                   </For>
-                  <For each={diffResult()!}>
+                  <For each={diffResult()}>
                     {(part) => (
                       <Show when={part.type === 'insert'}>
                         <span class="bg-emerald-500/20 text-emerald-200 border-b border-emerald-500/40">

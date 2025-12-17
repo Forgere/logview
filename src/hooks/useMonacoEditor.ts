@@ -32,7 +32,12 @@ export interface MonacoEditorAPI {
   monaco: Accessor<typeof monaco | null>
   scrollToLine: (line: number, center?: boolean) => void
   scrollToPosition: (line: number, column: number, center?: boolean) => void
-  setSelection: (startLine: number, startCol: number, endLine: number, endCol: number) => void
+  setSelection: (
+    startLine: number,
+    startCol: number,
+    endLine: number,
+    endCol: number,
+  ) => void
   revealLine: (line: number) => void
   getVisibleRange: () => monaco.Range | null
   findNext: (
@@ -43,7 +48,7 @@ export interface MonacoEditorAPI {
     query: string,
     options?: any, // Using any since IFindControllerOptions may not be available
   ) => boolean
-  getFindState: () => any | null, // Using any since IFindControllerState may not be available，
+  getFindState: () => any | null // Using any since IFindControllerState may not be available，
   onCreate?: (editor: monaco.editor.IStandaloneCodeEditor) => void
 }
 
@@ -76,11 +81,12 @@ export function useMonacoEditor(
     highlightStyleElement = document.createElement('style')
     highlightStyleElement.id = 'monaco-highlight-rules'
 
-    const cssRules = rules.map((rule) => {
-      const bgColor = rule.color || 'transparent'
-      const textColor = rule.textColor || 'inherit'
+    const cssRules = rules
+      .map((rule) => {
+        const bgColor = rule.color || 'transparent'
+        const textColor = rule.textColor || 'inherit'
 
-      return `
+        return `
         .highlight-rule-${rule.id} {
           background-color: ${bgColor} !important;
         }
@@ -101,7 +107,8 @@ export function useMonacoEditor(
           color: ${textColor} !important;
         }
       `
-    }).join('\n')
+      })
+      .join('\n')
 
     highlightStyleElement.textContent = cssRules
     document.head.appendChild(highlightStyleElement)
@@ -237,22 +244,23 @@ export function useMonacoEditor(
     // Handle Ctrl+F directly in Monaco editor - update search store directly
     ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => {
       // Get selected text if any
-      const selection = ed.getSelection();
-      const selectedText = selection && !selection.isEmpty()
-        ? ed.getModel()?.getValueInRange(selection) || ''
-        : '';
+      const selection = ed.getSelection()
+      const selectedText =
+        selection && !selection.isEmpty()
+          ? ed.getModel()?.getValueInRange(selection) || ''
+          : ''
 
       // Update search query directly if setSearchQuery is provided
       if (selectedText && options.setSearchQuery) {
-        options.setSearchQuery(selectedText);
+        options.setSearchQuery(selectedText)
       }
 
       // Optionally focus search input if function is provided
       if (options.focusSearchInput) {
-        options.focusSearchInput();
+        options.focusSearchInput()
       }
 
-      return null; // Prevent default Monaco behavior
+      return null // Prevent default Monaco behavior
     })
 
     // Enter key - go to next search match
@@ -291,7 +299,7 @@ export function useMonacoEditor(
 
       // Override focus behavior to prevent find widget
       if ((findController as any).focusFindInput) {
-        (findController as any).focusFindInput = function () {
+        ;(findController as any).focusFindInput = function () {
           return
         }
       }
@@ -300,14 +308,14 @@ export function useMonacoEditor(
       if ((findController as any).getState) {
         const originalGetState = (findController as any).getState
         if (originalGetState) {
-          (findController as any).getState = function () {
+          ;(findController as any).getState = function () {
             const state = originalGetState.call(this)
             if (state) {
               // Override isRevealed to always be false
               Object.defineProperty(state, 'isRevealed', {
                 get: () => false,
                 set: () => {},
-                configurable: true
+                configurable: true,
               })
             }
             return state
@@ -330,13 +338,24 @@ export function useMonacoEditor(
 
   // Update settings
   createEffect(
-    on(options.settings, (settings) => {
-      editorInstance()?.updateOptions({
-        fontSize: settings.fontSize,
-        lineHeight: settings.rowHeight,
-        wordWrap: settings.wrapLines ? 'on' : 'off',
-      })
-    }),
+    on(
+      () => {
+        const s = options.settings()
+        // Explicitly track all individual properties for reactivity
+        return {
+          fontSize: s.fontSize,
+          rowHeight: s.rowHeight,
+          wrapLines: s.wrapLines,
+        }
+      },
+      (settings) => {
+        editorInstance()?.updateOptions({
+          fontSize: settings.fontSize,
+          lineHeight: settings.rowHeight,
+          wordWrap: settings.wrapLines ? 'on' : 'off',
+        })
+      },
+    ),
   )
 
   // Update search decorations
@@ -412,8 +431,8 @@ export function useMonacoEditor(
   // Update highlight rule decorations
   createEffect(
     on(
-      () => [options.highlightRules(), options.content()] as const,
-      ([rules, content]) => {
+      () => options.highlightRules(),
+      (rules) => {
         const ed = editorInstance()
         const monaco = monacoInstance()
         if (!ed || !monaco) return
@@ -421,7 +440,13 @@ export function useMonacoEditor(
         // Inject CSS styles for highlight rules
         injectHighlightStyles(rules)
 
-        // If no content, just clear decorations
+        const model = ed.getModel()
+        if (!model) {
+          highlightDecorations = ed.deltaDecorations(highlightDecorations, [])
+          return
+        }
+
+        const content = model.getValue()
         if (!content) {
           highlightDecorations = ed.deltaDecorations(highlightDecorations, [])
           return
@@ -439,18 +464,48 @@ export function useMonacoEditor(
             const regex = new RegExp(pattern, flags)
 
             lines.forEach((line, idx) => {
-              if (regex.test(line)) {
+              const lineNumber = idx + 1
+
+              if (rule.applyToWholeLine !== false) {
+                // Whole line highlight - just check if line matches
+                if (regex.test(line)) {
+                  regex.lastIndex = 0
+                  decorations.push({
+                    range: new monaco.Range(
+                      lineNumber,
+                      1,
+                      lineNumber,
+                      line.length + 1,
+                    ),
+                    options: {
+                      isWholeLine: true,
+                      className: `highlight-rule-${rule.id}`,
+                    },
+                  })
+                }
+              } else {
+                // Inline highlight - find all matches and highlight each one
+                let match
                 regex.lastIndex = 0
-                decorations.push({
-                  range: new monaco.Range(idx + 1, 1, idx + 1, 1),
-                  options: {
-                    isWholeLine: rule.applyToWholeLine !== false,
-                    className: `highlight-rule-${rule.id}`,
-                    inlineClassName: rule.applyToWholeLine === false
-                      ? `highlight-inline-${rule.id}`
-                      : undefined,
-                  },
-                })
+                while ((match = regex.exec(line)) !== null) {
+                  const startCol = match.index + 1
+                  const endCol = match.index + match[0].length + 1
+                  decorations.push({
+                    range: new monaco.Range(
+                      lineNumber,
+                      startCol,
+                      lineNumber,
+                      endCol,
+                    ),
+                    options: {
+                      inlineClassName: `highlight-inline-${rule.id}`,
+                    },
+                  })
+                  // Prevent infinite loop for zero-length matches
+                  if (match[0].length === 0) {
+                    regex.lastIndex++
+                  }
+                }
               }
             })
           } catch {
@@ -500,7 +555,12 @@ export function useMonacoEditor(
     }
   }
 
-  const setSelection = (startLine: number, startCol: number, endLine: number, endCol: number) => {
+  const setSelection = (
+    startLine: number,
+    startCol: number,
+    endLine: number,
+    endCol: number,
+  ) => {
     const ed = editorInstance()
     const monaco = monacoInstance()
     if (!ed || !monaco) return

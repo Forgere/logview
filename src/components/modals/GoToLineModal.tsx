@@ -1,4 +1,4 @@
-import { createSignal, createEffect, on } from 'solid-js'
+import { createEffect, createSignal, on } from 'solid-js'
 import { Modal } from '~/components/ui/Modal'
 
 interface GoToLineModalProps {

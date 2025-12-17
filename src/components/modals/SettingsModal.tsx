@@ -9,8 +9,8 @@ import {
   Split,
   Type,
 } from 'lucide-solid'
-import { Modal } from '~/components/ui/Modal'
 import type { ViewSettings } from '~/types'
+import { Modal } from '~/components/ui/Modal'
 import { DEFAULT_VIEW_SETTINGS } from '~/types'
 
 interface SettingsModalProps {
@@ -26,7 +26,9 @@ export function SettingsModal(props: SettingsModalProps) {
     props.setViewSettings({ ...DEFAULT_VIEW_SETTINGS })
   }
 
-  const updateNewLineConfig = (updates: Partial<ViewSettings['newLineConfig']>) => {
+  const updateNewLineConfig = (
+    updates: Partial<ViewSettings['newLineConfig']>,
+  ) => {
     props.setViewSettings({
       ...props.viewSettings,
       newLineConfig: {
@@ -63,7 +65,9 @@ export function SettingsModal(props: SettingsModalProps) {
             <div class="flex items-center gap-3">
               <AlignJustify size={18} class="text-blue-400" />
               <div>
-                <div class="text-sm font-medium text-gray-200">Text Wrapping</div>
+                <div class="text-sm font-medium text-gray-200">
+                  Text Wrapping
+                </div>
                 <div class="text-xs text-gray-500">
                   Wrap long lines to fit the window width.
                 </div>
@@ -90,7 +94,9 @@ export function SettingsModal(props: SettingsModalProps) {
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <MoveVertical size={16} class="text-blue-400" />
-                <span class="text-sm font-medium text-gray-200">Row Height</span>
+                <span class="text-sm font-medium text-gray-200">
+                  Row Height
+                </span>
               </div>
               <span class="text-xs font-mono bg-[#333] px-2 py-0.5 rounded text-gray-300">
                 {props.viewSettings.rowHeight}px
@@ -111,7 +117,8 @@ export function SettingsModal(props: SettingsModalProps) {
               class="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
             />
             <p class="text-[10px] text-gray-500 italic">
-              Tip: Increase row height if Text Wrapping is enabled to prevent overlap.
+              Tip: Increase row height if Text Wrapping is enabled to prevent
+              overlap.
             </p>
           </div>
 
@@ -148,7 +155,9 @@ export function SettingsModal(props: SettingsModalProps) {
               <div class="flex items-center gap-2">
                 <Split size={16} class="text-blue-400" />
                 <div>
-                  <div class="text-sm font-medium text-gray-200">Custom Line Breaking</div>
+                  <div class="text-sm font-medium text-gray-200">
+                    Custom Line Breaking
+                  </div>
                   <div class="text-[10px] text-gray-500">
                     Insert new lines when a character is found.
                   </div>
@@ -158,7 +167,9 @@ export function SettingsModal(props: SettingsModalProps) {
                 <input
                   type="checkbox"
                   checked={props.viewSettings.newLineConfig?.enabled ?? false}
-                  onChange={(e) => updateNewLineConfig({ enabled: e.currentTarget.checked })}
+                  onChange={(e) =>
+                    updateNewLineConfig({ enabled: e.currentTarget.checked })
+                  }
                   class="sr-only peer"
                 />
                 <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
@@ -172,16 +183,22 @@ export function SettingsModal(props: SettingsModalProps) {
                   <input
                     type="text"
                     value={props.viewSettings.newLineConfig?.match || ''}
-                    onInput={(e) => updateNewLineConfig({ match: e.currentTarget.value })}
+                    onInput={(e) =>
+                      updateNewLineConfig({ match: e.currentTarget.value })
+                    }
                     placeholder="e.g. | or ,"
                     class="flex-1 bg-[#252526] border border-[#444] rounded px-2 py-1 text-sm text-white font-mono outline-none focus:border-blue-500"
                   />
                 </div>
                 <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-400 w-20">Break Position:</span>
+                  <span class="text-xs text-gray-400 w-20">
+                    Break Position:
+                  </span>
                   <div class="flex flex-1 gap-1 bg-[#252526] p-1 rounded border border-[#444]">
                     <button
-                      onClick={() => updateNewLineConfig({ position: 'before' })}
+                      onClick={() =>
+                        updateNewLineConfig({ position: 'before' })
+                      }
                       class={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded text-xs transition-colors ${props.viewSettings.newLineConfig?.position === 'before' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`}
                     >
                       <ArrowLeftToLine size={12} /> Before

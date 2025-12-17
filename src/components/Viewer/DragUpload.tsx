@@ -1,100 +1,94 @@
-import {
-  Show,
-  createSignal,
-  onCleanup,
-  onMount,
-  type JSX,
-  type ParentProps
-} from 'solid-js';
-import { Upload, FileText } from 'lucide-solid';
+import { Show, createSignal, onCleanup, onMount } from 'solid-js'
+import { FileText, Upload } from 'lucide-solid'
+import type { JSX, ParentProps } from 'solid-js'
 
 interface DragUploadProps {
-  onFileSelect: (file: File) => void;
-  hasFiles?: boolean; // Whether files are currently loaded
-  children?: JSX.Element;
+  onFileSelect: (file: File) => void
+  hasFiles?: boolean // Whether files are currently loaded
+  children?: JSX.Element
 }
 
 export const DragUpload = (props: DragUploadProps & ParentProps) => {
   // State for drag and drop
-  const [isDragging, setIsDragging] = createSignal(false);
-  let dragCounter = 0;
+  const [isDragging, setIsDragging] = createSignal(false)
+  let dragCounter = 0
 
   // Create hidden file input element
-  let fileInputRef: HTMLInputElement | undefined;
+  let fileInputRef: HTMLInputElement | undefined
 
   // Handle drag enter
   const handleDragEnter = (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter++;
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter++
     if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
-      setIsDragging(true);
+      setIsDragging(true)
     }
-  };
+  }
 
   // Handle drag leave
   const handleDragLeave = (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter--;
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter--
 
     // Timeout prevents flickering when moving between children
     setTimeout(() => {
       if (dragCounter <= 0) {
-        dragCounter = 0;
-        setIsDragging(false);
+        dragCounter = 0
+        setIsDragging(false)
       }
-    }, 50);
-  };
+    }, 50)
+  }
 
   // Handle drag over
   const handleDragOver = (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
+    e.preventDefault()
+    e.stopPropagation()
+  }
 
   // Handle drop
   const handleDrop = (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    dragCounter = 0;
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    dragCounter = 0
 
     if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      props.onFileSelect(file);
+      const file = e.dataTransfer.files[0]
+      props.onFileSelect(file)
     }
-  };
+  }
 
   // Handle file input change
   const handleFileInput = (e: Event) => {
-    const target = e.target as HTMLInputElement;
+    const target = e.target as HTMLInputElement
     if (target.files && target.files.length > 0) {
-      props.onFileSelect(target.files[0]);
+      props.onFileSelect(target.files[0])
     }
-  };
+  }
 
   // Click handler to trigger file input
   const handleClick = () => {
-    fileInputRef?.click();
-  };
+    fileInputRef?.click()
+  }
 
   // Setup event listeners on mount
   onMount(() => {
     // Attach listeners to the main document for global drag events
-    document.addEventListener('dragenter', handleDragEnter);
-    document.addEventListener('dragleave', handleDragLeave);
-    document.addEventListener('dragover', handleDragOver);
-    document.addEventListener('drop', handleDrop);
+    document.addEventListener('dragenter', handleDragEnter)
+    document.addEventListener('dragleave', handleDragLeave)
+    document.addEventListener('dragover', handleDragOver)
+    document.addEventListener('drop', handleDrop)
 
     // Clean up event listeners on unmount
     onCleanup(() => {
-      document.removeEventListener('dragenter', handleDragEnter);
-      document.removeEventListener('dragleave', handleDragLeave);
-      document.removeEventListener('dragover', handleDragOver);
-      document.removeEventListener('drop', handleDrop);
-    });
-  });
+      document.removeEventListener('dragenter', handleDragEnter)
+      document.removeEventListener('dragleave', handleDragLeave)
+      document.removeEventListener('dragover', handleDragOver)
+      document.removeEventListener('drop', handleDrop)
+    })
+  })
 
   return (
     <>
@@ -119,8 +113,12 @@ export const DragUpload = (props: DragUploadProps & ParentProps) => {
           <div class="w-16 h-16 bg-[#252526] rounded-2xl flex items-center justify-center mb-4 border border-[#333] cursor-pointer hover:bg-[#2a2a2a] transition-colors">
             <FileText size={32} class="opacity-50" />
           </div>
-          <p class="text-lg font-medium text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">No file loaded</p>
-          <p class="text-sm opacity-60 mt-2 cursor-pointer hover:text-gray-300 transition-colors">Drag & drop a log file or click to browse</p>
+          <p class="text-lg font-medium text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+            No file loaded
+          </p>
+          <p class="text-sm opacity-60 mt-2 cursor-pointer hover:text-gray-300 transition-colors">
+            Drag & drop a log file or click to browse
+          </p>
         </div>
       </Show>
 
@@ -132,12 +130,16 @@ export const DragUpload = (props: DragUploadProps & ParentProps) => {
               <div class="p-4 bg-blue-500/20 rounded-full text-blue-400">
                 <Upload size={32} />
               </div>
-              <div class="text-xl font-bold text-gray-200">Drop log file here</div>
-              <div class="text-sm text-gray-500">Supports .log, .txt, and other text formats</div>
+              <div class="text-xl font-bold text-gray-200">
+                Drop log file here
+              </div>
+              <div class="text-sm text-gray-500">
+                Supports .log, .txt, and other text formats
+              </div>
             </div>
           </div>
         </div>
       </Show>
     </>
-  );
-};
+  )
+}

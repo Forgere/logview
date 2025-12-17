@@ -1,7 +1,7 @@
 import { Show, createEffect, createSignal, on } from 'solid-js'
 import { Sparkles } from 'lucide-solid'
-import { Modal } from '~/components/ui/Modal'
 import type { LogMarker } from '~/types'
+import { Modal } from '~/components/ui/Modal'
 
 interface AnalysisModalProps {
   isOpen: boolean
@@ -56,7 +56,12 @@ Check the 'logService' latency simulation parameters and verify the retry logic 
   )
 
   return (
-    <Modal isOpen={props.isOpen} onClose={props.onClose} title="AI Analysis" class="w-[600px]">
+    <Modal
+      isOpen={props.isOpen}
+      onClose={props.onClose}
+      title="AI Analysis"
+      class="w-[600px]"
+    >
       <div class="prose prose-invert prose-sm max-w-none">
         <Show
           when={!isLoading()}
@@ -66,7 +71,9 @@ Check the 'logService' latency simulation parameters and verify the retry logic 
             </div>
           }
         >
-          <div class="whitespace-pre-wrap leading-relaxed text-gray-300">{text()}</div>
+          <div class="whitespace-pre-wrap leading-relaxed text-gray-300">
+            {text()}
+          </div>
         </Show>
       </div>
     </Modal>

@@ -2,14 +2,14 @@ import { createContext, useContext } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import type { ParentProps } from 'solid-js'
 import type { FileInfo, ViewMode, ViewSettings, WatchMode } from '~/types'
-import { FileStreamer } from '~/services/fileStreamService'
 import type * as monaco from 'monaco-editor'
+import { FileStreamer } from '~/services/fileStreamService'
 
 interface WatchState {
   pattern: string
   mode: WatchMode
   isActive: boolean
-  matchedLines: number[]
+  matchedLines: Array<number>
 }
 
 interface LogState {
@@ -49,7 +49,7 @@ const LogContext = createContext<LogStoreContext | null>(null)
 
 export function LogProvider(props: ParentProps) {
   let streamer: FileStreamer | null = null
-  let pendingBuffer: string[] = []
+  let pendingBuffer: Array<string> = []
   let monacoInstance: monaco.editor.IStandaloneCodeEditor | null = null
   let newLineConfig: ViewSettings['newLineConfig'] | null = null
   let watchMatchCallback: WatchMatchCallback | null = null
@@ -105,11 +105,11 @@ export function LogProvider(props: ParentProps) {
   }
 
   // Process chunk according to newLineConfig
-  const processChunk = (chunk: string[]): string[] => {
+  const processChunk = (chunk: Array<string>): Array<string> => {
     if (!newLineConfig || !newLineConfig.enabled || !newLineConfig.match)
       return chunk
 
-    const result: string[] = []
+    const result: Array<string> = []
     const { match, position } = newLineConfig
 
     for (const line of chunk) {
@@ -150,7 +150,8 @@ export function LogProvider(props: ParentProps) {
 
     const scrollTop = monacoInstance.getScrollTop()
     const layoutInfo = monacoInstance.getLayoutInfo()
-    const atBottom = scrollTop + layoutInfo.height >= monacoInstance.getScrollHeight() - 5
+    const atBottom =
+      scrollTop + layoutInfo.height >= monacoInstance.getScrollHeight() - 5
     const startLine = model.getLineCount() + 1
 
     // Check each line for watch matches before adding
@@ -166,23 +167,27 @@ export function LogProvider(props: ParentProps) {
       const batch = chunk.slice(index, index + BATCH_SIZE)
       if (batch.length === 0) return
 
-      model.pushEditOperations([], [
-        {
-          range: {
-            startLineNumber: startLine + index,
-            startColumn: 1,
-            endLineNumber: startLine + index,
-            endColumn: 1,
+      model.pushEditOperations(
+        [],
+        [
+          {
+            range: {
+              startLineNumber: startLine + index,
+              startColumn: 1,
+              endLineNumber: startLine + index,
+              endColumn: 1,
+            },
+            text: batch.join('\n') + '\n',
           },
-          text: batch.join('\n') + '\n',
-        },
-      ], () => null)
+        ],
+        () => null,
+      )
 
       index += BATCH_SIZE
 
       if (index < chunk.length) {
         if ('requestIdleCallback' in window) {
-          (window as any).requestIdleCallback(processBatch)
+          ;(window as any).requestIdleCallback(processBatch)
         } else {
           requestAnimationFrame(processBatch)
         }
@@ -202,7 +207,6 @@ export function LogProvider(props: ParentProps) {
 
     processBatch()
   }
-
 
   const actions: LogActions = {
     loadFile: (file, config) => {
@@ -231,7 +235,8 @@ export function LogProvider(props: ParentProps) {
           pendingBuffer.push(...processChunk(lines))
           if (pendingBuffer.length > 500) flushBuffer()
         },
-        onProgress: (bytesRead, total) => setState('progress', (bytesRead / total) * 100),
+        onProgress: (bytesRead, total) =>
+          setState('progress', (bytesRead / total) * 100),
         onComplete: () => {
           flushBuffer()
           setState('isStreaming', false)
@@ -291,6 +296,32 @@ export function LogProvider(props: ParentProps) {
       if (state.watch.pattern) {
         setState('watch', 'isActive', true)
         setState('watch', 'matchedLines', [])
+
+        // Scan existing content for matches
+        if (monacoInstance) {
+          const model = monacoInstance.getModel()
+          if (model) {
+            const content = model.getValue()
+            const lines = content.split('\n')
+            try {
+              const regex = new RegExp(state.watch.pattern, 'i')
+              lines.forEach((line, idx) => {
+                const lineNumber = idx + 1
+                if (regex.test(line)) {
+                  setState('watch', 'matchedLines', (prev) => [
+                    ...prev,
+                    lineNumber,
+                  ])
+                  if (watchMatchCallback) {
+                    watchMatchCallback(lineNumber, line)
+                  }
+                }
+              })
+            } catch {
+              // Invalid regex
+            }
+          }
+        }
       }
     },
 
@@ -317,17 +348,21 @@ export function LogProvider(props: ParentProps) {
   }
 
   return (
-    <LogContext.Provider value={{
-      state,
-      actions,
-      monacoEditor: monacoInstance,
-      setMonacoEditor: (editor: monaco.editor.IStandaloneCodeEditor | null) => {
-        monacoInstance = editor
-      },
-      setWatchMatchCallback: (cb: WatchMatchCallback | null) => {
-        watchMatchCallback = cb
-      },
-    }}>
+    <LogContext.Provider
+      value={{
+        state,
+        actions,
+        monacoEditor: monacoInstance,
+        setMonacoEditor: (
+          editor: monaco.editor.IStandaloneCodeEditor | null,
+        ) => {
+          monacoInstance = editor
+        },
+        setWatchMatchCallback: (cb: WatchMatchCallback | null) => {
+          watchMatchCallback = cb
+        },
+      }}
+    >
       {props.children}
     </LogContext.Provider>
   )

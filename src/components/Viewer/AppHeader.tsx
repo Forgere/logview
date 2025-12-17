@@ -12,7 +12,6 @@ import {
   Terminal,
 } from 'lucide-solid'
 
-
 export interface AppHeaderProps {
   viewMode: 'browse' | 'follow'
   isStreaming: boolean
@@ -139,9 +138,17 @@ export function AppHeader(props: AppHeaderProps) {
                         ? 'bg-green-900/30 text-green-400 border-green-700 hover:bg-green-900/50'
                         : 'bg-gray-800 text-gray-400 border-gray-600 hover:bg-gray-700'
                     }`}
-                    title={props.viewMode === 'follow' ? 'Switch to Browse mode' : 'Switch to Follow mode'}
+                    title={
+                      props.viewMode === 'follow'
+                        ? 'Switch to Browse mode'
+                        : 'Switch to Follow mode'
+                    }
                   >
-                    {props.viewMode === 'follow' ? <Eye size={12} /> : <EyeOff size={12} />}
+                    {props.viewMode === 'follow' ? (
+                      <Eye size={12} />
+                    ) : (
+                      <EyeOff size={12} />
+                    )}
                     {props.viewMode === 'follow' ? 'Following' : 'Browse'}
                   </button>
                 </Show>
@@ -158,7 +165,13 @@ export function AppHeader(props: AppHeaderProps) {
                 </Show>
 
                 {/* Resume button when paused */}
-                <Show when={!props.isStreaming && props.progress < 100 && props.onTogglePause}>
+                <Show
+                  when={
+                    !props.isStreaming &&
+                    props.progress < 100 &&
+                    props.onTogglePause
+                  }
+                >
                   <button
                     onClick={props.onTogglePause}
                     class="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-green-900/30 text-green-400 border border-green-700 hover:bg-green-900/50 transition-colors"
@@ -176,7 +189,9 @@ export function AppHeader(props: AppHeaderProps) {
                     title="Stop watching"
                   >
                     <Eye size={12} class="animate-pulse" />
-                    <span class="max-w-[100px] truncate">"{props.watchPattern}"</span>
+                    <span class="max-w-[100px] truncate">
+                      "{props.watchPattern}"
+                    </span>
                     <span class="text-amber-600">×</span>
                   </button>
                 </Show>

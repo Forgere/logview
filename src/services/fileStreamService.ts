@@ -1,5 +1,5 @@
 export interface StreamOptions {
-  onChunk: (lines: string[]) => void
+  onChunk: (lines: Array<string>) => void
   onProgress: (bytesRead: number, totalBytes: number) => void
   onComplete: () => void
   onError: (error: Error) => void
@@ -17,7 +17,7 @@ export class FileStreamer {
     let bytesRead = 0
     let leftover = ''
 
-    let lineBuffer: string[] = []
+    const lineBuffer: Array<string> = []
     const MAX_BATCH = 500 // 每次 flush 的行数
 
     try {
@@ -26,9 +26,15 @@ export class FileStreamer {
       const reader = textStream.getReader()
 
       while (true) {
-        if (signal.aborted) { reader.cancel(); break }
+        if (signal.aborted) {
+          reader.cancel()
+          break
+        }
 
-        while (this.isPaused) { await new Promise(r => setTimeout(r, 100)); if (signal.aborted) break }
+        while (this.isPaused) {
+          await new Promise((r) => setTimeout(r, 100))
+          if (signal.aborted) break
+        }
 
         const { value, done } = await reader.read()
 
@@ -49,14 +55,22 @@ export class FileStreamer {
         if (lastNewline !== -1) {
           const complete = chunk.substring(0, lastNewline)
           leftover = chunk.substring(lastNewline + 1)
-          const lines = complete.split('\n').map(l => l.replace(/\r$/, ''))
+          const lines = complete.split('\n').map((l) => l.replace(/\r$/, ''))
           lineBuffer.push(...lines)
 
           while (lineBuffer.length >= MAX_BATCH) {
             const batch = lineBuffer.splice(0, MAX_BATCH)
-            if (typeof window !== 'undefined' && 'requestIdleCallback' in window && window.requestIdleCallback) {
+            if (
+              typeof window !== 'undefined' &&
+              'requestIdleCallback' in window &&
+              window.requestIdleCallback
+            ) {
               window.requestIdleCallback(() => options.onChunk(batch))
-            } else if (typeof window !== 'undefined' && 'requestAnimationFrame' in window && window.requestAnimationFrame) {
+            } else if (
+              typeof window !== 'undefined' &&
+              'requestAnimationFrame' in window &&
+              window.requestAnimationFrame
+            ) {
               window.requestAnimationFrame(() => options.onChunk(batch))
             } else {
               // Fallback for SSR or environments without these APIs
@@ -72,8 +86,17 @@ export class FileStreamer {
     }
   }
 
-  pause() { this.isPaused = true }
-  resume() { this.isPaused = false }
-  cancel() { this.abortController?.abort(); this.isPaused = false }
-  get paused() { return this.isPaused }
+  pause() {
+    this.isPaused = true
+  }
+  resume() {
+    this.isPaused = false
+  }
+  cancel() {
+    this.abortController?.abort()
+    this.isPaused = false
+  }
+  get paused() {
+    return this.isPaused
+  }
 }

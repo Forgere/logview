@@ -6,11 +6,7 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js'
-import type {
-  LogMarker,
-  MarkerRange,
-  WatchMode,
-} from '~/types'
+import type { LogMarker, MarkerRange, WatchMode } from '~/types'
 import { AppHeader } from '~/components/Viewer/AppHeader'
 import { SearchBar } from '~/components/Viewer/SearchBar'
 import { LogViewer } from '~/components/Viewer/LogViewer'
@@ -40,7 +36,12 @@ export const Route = createFileRoute('/viewer')({
 })
 
 function RouteComponent() {
-  const { state: logState, actions: logActions, setMonacoEditor } = useLog()
+  const {
+    state: logState,
+    actions: logActions,
+    setMonacoEditor,
+    setWatchMatchCallback,
+  } = useLog()
   const [searchState, searchActions, searchDerived] = useSearch()
   const [viewState, viewActions] = useView()
 
@@ -69,7 +70,7 @@ function RouteComponent() {
 
   // Optimize: Derived signals for virtual scrolling - Use line count from the log store state
   const totalLines = createMemo(() => {
-    return logState.lineCount;
+    return logState.lineCount
   })
 
   // Viewer state - Use logState as single source of truth with direct updates
@@ -77,7 +78,9 @@ function RouteComponent() {
 
   // Marker state
   const [markers, setMarkers] = createSignal<Array<LogMarker>>([])
-  const [selectedMarkerIds, setSelectedMarkerIds] = createSignal<Set<string>>(new Set())
+  const [selectedMarkerIds, setSelectedMarkerIds] = createSignal<Set<string>>(
+    new Set(),
+  )
 
   let searchInputRef: HTMLInputElement | undefined
   let monacoEditorRef: any = null
@@ -233,9 +236,42 @@ function RouteComponent() {
   }
 
   // Handle text selection from LogViewer
-  const handleSelectionChange = (_selection: { text: string; range: any; line: string } | null) => {
+  const handleSelectionChange = (
+    _selection: { text: string; range: any; line: string } | null,
+  ) => {
     // Currently we don't store selected text separately
   }
+
+  // Set up watch match callback to add markers when watch mode matches
+  onMount(() => {
+    setWatchMatchCallback((lineNumber: number, line: string) => {
+      // Add markers for both MARK_ONLY and PAUSE_ALL modes
+      const newMarker: LogMarker = {
+        id: `watch-${Date.now()}-${lineNumber}`,
+        range: {
+          startLineNumber: lineNumber,
+          startColumn: 1,
+          endLineNumber: lineNumber,
+          endColumn: line.length + 1,
+        },
+        selectedText: line,
+        contextLine: line,
+        timestamp: new Date().toLocaleTimeString(),
+        note: `Watch match: "${logState.watch.pattern}"`,
+      }
+
+      setMarkers((prev) => [...prev, newMarker])
+
+      // Auto-open marker panel if not open
+      if (!isMarkerPanelOpen()) {
+        setIsMarkerPanelOpen(true)
+      }
+    })
+
+    onCleanup(() => {
+      setWatchMatchCallback(null)
+    })
+  })
 
   // Keyboard shortcuts
   onMount(() => {
@@ -378,7 +414,10 @@ function RouteComponent() {
               updateMatches={searchActions.updateMatches}
             />
           </div>
-          <DragUpload onFileSelect={handleFileSelect} hasFiles={totalLines() > 0}>
+          <DragUpload
+            onFileSelect={handleFileSelect}
+            hasFiles={totalLines() > 0}
+          >
             {/* Empty div to ensure DragUpload renders properly */}
             <div></div>
           </DragUpload>
@@ -432,8 +471,10 @@ function RouteComponent() {
           rules={viewState.highlightRules}
           setRules={(rules) => {
             // Clear existing and set new rules
-            viewState.highlightRules.forEach(r => viewActions.removeHighlightRule(r.id))
-            rules.forEach(r => viewActions.addHighlightRule(r))
+            viewState.highlightRules.forEach((r) =>
+              viewActions.removeHighlightRule(r.id),
+            )
+            rules.forEach((r) => viewActions.addHighlightRule(r))
           }}
         />
 
@@ -457,9 +498,7 @@ function RouteComponent() {
           markers={markers()}
           selectedIds={selectedMarkerIds()}
         />
-
       </ErrorBoundary>
     </div>
   )
 }
-

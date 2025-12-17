@@ -1,7 +1,7 @@
-import { createSignal, createEffect, on } from 'solid-js'
+import { createEffect, createSignal, on } from 'solid-js'
 import { Bookmark, PauseCircle, Play } from 'lucide-solid'
-import { Modal } from '~/components/ui/Modal'
 import type { WatchMode } from '~/types'
+import { Modal } from '~/components/ui/Modal'
 
 interface WatchSettingsModalProps {
   isOpen: boolean
@@ -33,10 +33,17 @@ export function WatchSettingsModal(props: WatchSettingsModalProps) {
   }
 
   return (
-    <Modal isOpen={props.isOpen} onClose={props.onClose} title="Watch Mode" class="w-[500px]">
+    <Modal
+      isOpen={props.isOpen}
+      onClose={props.onClose}
+      title="Watch Mode"
+      class="w-[500px]"
+    >
       <form onSubmit={handleSubmit} class="flex flex-col gap-6">
         <div class="space-y-2">
-          <label class="text-xs font-medium text-gray-400 uppercase">Watch Pattern</label>
+          <label class="text-xs font-medium text-gray-400 uppercase">
+            Watch Pattern
+          </label>
           <input
             type="text"
             value={pattern()}
@@ -48,7 +55,9 @@ export function WatchSettingsModal(props: WatchSettingsModalProps) {
         </div>
 
         <div class="space-y-3">
-          <label class="text-xs font-medium text-gray-400 uppercase">Action on Match</label>
+          <label class="text-xs font-medium text-gray-400 uppercase">
+            Action on Match
+          </label>
 
           <label
             class={`flex items-start gap-3 p-3 rounded border cursor-pointer transition-all ${mode() === 'PAUSE_ALL' ? 'bg-amber-950/30 border-amber-700' : 'bg-[#252526] border-[#333] hover:border-[#444]'}`}
@@ -66,8 +75,8 @@ export function WatchSettingsModal(props: WatchSettingsModalProps) {
                 Pause Viewer
               </div>
               <p class="text-xs text-gray-500">
-                Switches to browse mode at the matched line. The file continues loading in
-                the background.
+                Switches to browse mode at the matched line. The file continues
+                loading in the background.
               </p>
             </div>
           </label>
@@ -88,8 +97,8 @@ export function WatchSettingsModal(props: WatchSettingsModalProps) {
                 Just Add Marker
               </div>
               <p class="text-xs text-gray-500">
-                Continues following and streaming. Automatically adds a bookmark to every
-                matching line.
+                Continues following and streaming. Automatically adds a bookmark
+                to every matching line.
               </p>
             </div>
           </label>

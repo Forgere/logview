@@ -1,4 +1,11 @@
-import { Show, batch, createEffect, createMemo, createSignal, on } from 'solid-js'
+import {
+  Show,
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+} from 'solid-js'
 import { Bookmark } from 'lucide-solid'
 import type {
   HighlightRule,
@@ -7,10 +14,10 @@ import type {
   SearchMatch,
   ViewSettings,
 } from '~/types'
+import type * as monaco from 'monaco-editor'
 import { useMonacoEditor } from '~/hooks/useMonacoEditor'
 import { LogViewerErrorBoundary } from '~/components/ErrorBoundary'
 
-import type * as monaco from 'monaco-editor'
 import { useSearch } from '~/stores'
 
 interface SearchOptions {
@@ -31,7 +38,10 @@ interface LogViewerProps {
   onSelectionChange?: (
     selection: { text: string; range: any; line: string } | null,
   ) => void
-  onMonacoReady?: (monacoIntegration: any, editor: monaco.editor.IStandaloneCodeEditor | null) => void
+  onMonacoReady?: (
+    monacoIntegration: any,
+    editor: monaco.editor.IStandaloneCodeEditor | null,
+  ) => void
   // Search functions
   setSearchQuery?: (query: string) => void
   focusSearchInput?: () => void
@@ -82,7 +92,7 @@ export function LogViewer(props: LogViewerProps) {
 
   // Monaco editor setup
   const monacoAPI = useMonacoEditor(() => editorContainerRef, {
-    content: () => "",  // Provide empty content since it will be managed directly
+    content: () => '', // Provide empty content since it will be managed directly
     settings: () => props.viewSettings,
     highlightRules: () => props.customHighlights || [],
     searchMatches,
@@ -167,22 +177,16 @@ export function LogViewer(props: LogViewerProps) {
         }
         props.onMonacoReady(monacoIntegration, editor)
       }
-    }
+    },
   })
 
   createEffect(
     on(
-      () => [
-        searchMatches(),
-      ],
-      ([
-        matches,
-      ]) => {
-        props.updateMatches?.(
-          matches
-        )
-      }
-    )
+      () => [searchMatches()],
+      ([matches]) => {
+        props.updateMatches?.(matches)
+      },
+    ),
   )
 
   // Optimize: Search functionality with proper dependency tracking
@@ -217,7 +221,7 @@ export function LogViewer(props: LogViewerProps) {
             isCaseSensitive,
             isWholeWord ? null : '',
             true,
-            Number.MAX_SAFE_INTEGER
+            Number.MAX_SAFE_INTEGER,
           )
 
           const searchMatchesList: Array<SearchMatch> = matches.map(

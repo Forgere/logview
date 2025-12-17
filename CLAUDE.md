@@ -38,6 +38,7 @@ src/
 ### Key Patterns
 
 **State Management**: Use SolidJS stores in `src/stores/`. Each store exports a Provider and a `useX()` hook:
+
 - `useLog()` - File loading, streaming state, Monaco editor reference
 - `useSearch()` - Search query, matches, navigation
 - `useMarkers()` - Bookmarks/markers management
@@ -45,6 +46,7 @@ src/
 - `useModal()` - Modal open/close state
 
 **Monaco Integration**: `useMonacoEditor` hook handles:
+
 - Custom 'logview' language with log level syntax highlighting
 - Search decorations, marker decorations, highlight rules
 - Custom find (Ctrl+F intercepted → custom SearchBar)
@@ -61,6 +63,7 @@ src/
 ## React → Solid Conversion Notes
 
 When porting from HyperLog (React):
+
 - `useState` → `createSignal`
 - `useEffect` → `createEffect` (with `on()` for dependency tracking)
 - `useCallback`/`useMemo` → usually not needed, use `createMemo` if caching expensive computation
@@ -73,6 +76,7 @@ When porting from HyperLog (React):
 ### Missing Features (Reference HyperLog)
 
 These HyperLog features need to be ported to logview:
+
 - **Modals**: GoToLineModal, ShortcutsModal, CompareModal, AnalysisModal, HighlightSettingsModal, WatchSettingsModal, SettingsModal (see `HyperLog/components/modals/`)
 - **MarkerPanel**: Side panel for managing bookmarks (see `HyperLog/components/panels/MarkerPanel.tsx`)
 - **Watch Mode**: Pattern monitoring with PAUSE_ALL/MARK_ONLY modes

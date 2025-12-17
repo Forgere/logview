@@ -1,7 +1,7 @@
 import { For, Show, createSignal } from 'solid-js'
 import { PaintBucket, Plus, Trash2, Type } from 'lucide-solid'
-import { Modal } from '~/components/ui/Modal'
 import type { HighlightRule } from '~/types'
+import { Modal } from '~/components/ui/Modal'
 
 interface HighlightSettingsModalProps {
   isOpen: boolean
@@ -137,7 +137,9 @@ export function HighlightSettingsModal(props: HighlightSettingsModalProps) {
                     min="0"
                     max="100"
                     value={bgOpacity()}
-                    onInput={(e) => setBgOpacity(parseInt(e.currentTarget.value))}
+                    onInput={(e) =>
+                      setBgOpacity(parseInt(e.currentTarget.value))
+                    }
                     class="h-1.5 w-full bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
                     title="Opacity"
                   />
@@ -232,7 +234,9 @@ export function HighlightSettingsModal(props: HighlightSettingsModalProps) {
                         </Show>
                         <Show
                           when={
-                            !rule.isRegex && !rule.caseSensitive && !rule.applyToWholeLine
+                            !rule.isRegex &&
+                            !rule.caseSensitive &&
+                            !rule.applyToWholeLine
                           }
                         >
                           <span>Simple</span>

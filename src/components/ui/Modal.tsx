@@ -1,6 +1,6 @@
 import { Show } from 'solid-js'
-import type { ParentProps } from 'solid-js'
 import { X } from 'lucide-solid'
+import type { ParentProps } from 'solid-js'
 
 interface ModalProps extends ParentProps {
   isOpen: boolean

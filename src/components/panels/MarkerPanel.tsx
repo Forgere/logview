@@ -90,7 +90,9 @@ export function MarkerPanel(props: MarkerPanelProps) {
   let isResizing = false
 
   const allSelected = createMemo(
-    () => props.markers.length > 0 && props.selectedIds.size === props.markers.length,
+    () =>
+      props.markers.length > 0 &&
+      props.selectedIds.size === props.markers.length,
   )
 
   const toggleAll = () => {
@@ -108,7 +110,10 @@ export function MarkerPanel(props: MarkerPanelProps) {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return
       const newHeight = window.innerHeight - e.clientY
-      const clamped = Math.max(100, Math.min(window.innerHeight - 100, newHeight))
+      const clamped = Math.max(
+        100,
+        Math.min(window.innerHeight - 100, newHeight),
+      )
       setHeight(clamped)
     }
 
@@ -130,7 +135,8 @@ export function MarkerPanel(props: MarkerPanelProps) {
   // Virtual scrolling computation
   const virtualScrollData = createMemo(() => {
     const total = props.markers.length
-    if (total === 0) return { visibleMarkers: [], spacerTop: 0, spacerBottom: 0 }
+    if (total === 0)
+      return { visibleMarkers: [], spacerTop: 0, spacerBottom: 0 }
 
     const availableHeight = height() - 36
     const visibleCount = Math.ceil(availableHeight / ROW_HEIGHT)
@@ -181,7 +187,10 @@ export function MarkerPanel(props: MarkerPanelProps) {
           <span>MARKED RANGES ({props.markers.length})</span>
         </div>
 
-        <div class="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <div
+          class="flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             onClick={props.onOpenWatch}
             class="flex items-center gap-1.5 px-2 py-0.5 mr-2 rounded text-xs font-medium text-amber-500/80 hover:text-amber-400 hover:bg-amber-950/20 border border-transparent hover:border-amber-900/30 transition-all"
@@ -247,7 +256,10 @@ export function MarkerPanel(props: MarkerPanelProps) {
 
       {/* Panel Content */}
       <Show when={props.isOpen}>
-        <div class="flex-1 overflow-auto custom-scrollbar" onScroll={handleScroll}>
+        <div
+          class="flex-1 overflow-auto custom-scrollbar"
+          onScroll={handleScroll}
+        >
           <Show
             when={props.markers.length > 0}
             fallback={
@@ -270,7 +282,9 @@ export function MarkerPanel(props: MarkerPanelProps) {
                   </th>
                   <th class="w-16 p-2 border-b border-[#333]">Pos</th>
                   <th class="w-24 p-2 border-b border-[#333]">Time</th>
-                  <th class="p-2 border-b border-[#333]">Selection / Context</th>
+                  <th class="p-2 border-b border-[#333]">
+                    Selection / Context
+                  </th>
                   <th class="p-2 border-b border-[#333]">Note</th>
                   <th class="w-10 p-2 border-b border-[#333]"></th>
                 </tr>
@@ -293,7 +307,9 @@ export function MarkerPanel(props: MarkerPanelProps) {
                   )}
                 </For>
                 <Show when={virtualScrollData().spacerBottom > 0}>
-                  <tr style={{ height: `${virtualScrollData().spacerBottom}px` }}>
+                  <tr
+                    style={{ height: `${virtualScrollData().spacerBottom}px` }}
+                  >
                     <td colSpan={6} />
                   </tr>
                 </Show>
