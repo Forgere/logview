@@ -31,6 +31,8 @@ export interface MonacoEditorAPI {
   editor: Accessor<monaco.editor.IStandaloneCodeEditor | null>
   monaco: Accessor<typeof monaco | null>
   scrollToLine: (line: number, center?: boolean) => void
+  scrollToPosition: (line: number, column: number, center?: boolean) => void
+  setSelection: (startLine: number, startCol: number, endLine: number, endCol: number) => void
   revealLine: (line: number) => void
   getVisibleRange: () => monaco.Range | null
   findNext: (
@@ -59,6 +61,51 @@ export function useMonacoEditor(
   let searchDecorations: Array<string> = []
   let markerDecorations: Array<string> = []
   let highlightDecorations: Array<string> = []
+  let highlightStyleElement: HTMLStyleElement | null = null
+
+  // Helper function to inject CSS for highlight rules
+  const injectHighlightStyles = (rules: Array<HighlightRule>) => {
+    // Remove old style element if exists
+    if (highlightStyleElement) {
+      highlightStyleElement.remove()
+    }
+
+    if (rules.length === 0) return
+
+    // Create new style element
+    highlightStyleElement = document.createElement('style')
+    highlightStyleElement.id = 'monaco-highlight-rules'
+
+    const cssRules = rules.map((rule) => {
+      const bgColor = rule.color || 'transparent'
+      const textColor = rule.textColor || 'inherit'
+
+      return `
+        .highlight-rule-${rule.id} {
+          background-color: ${bgColor} !important;
+        }
+        .highlight-rule-${rule.id} .mtk1,
+        .highlight-rule-${rule.id} .mtk2,
+        .highlight-rule-${rule.id} .mtk3,
+        .highlight-rule-${rule.id} .mtk4,
+        .highlight-rule-${rule.id} .mtk5,
+        .highlight-rule-${rule.id} .mtk6,
+        .highlight-rule-${rule.id} .mtk7,
+        .highlight-rule-${rule.id} .mtk8,
+        .highlight-rule-${rule.id} .mtk9,
+        .highlight-rule-${rule.id} span {
+          color: ${textColor} !important;
+        }
+        .highlight-inline-${rule.id} {
+          background-color: ${bgColor} !important;
+          color: ${textColor} !important;
+        }
+      `
+    }).join('\n')
+
+    highlightStyleElement.textContent = cssRules
+    document.head.appendChild(highlightStyleElement)
+  }
 
   onMount(async () => {
     // Configure Monaco loader
@@ -369,7 +416,16 @@ export function useMonacoEditor(
       ([rules, content]) => {
         const ed = editorInstance()
         const monaco = monacoInstance()
-        if (!ed || !monaco || !content) return
+        if (!ed || !monaco) return
+
+        // Inject CSS styles for highlight rules
+        injectHighlightStyles(rules)
+
+        // If no content, just clear decorations
+        if (!content) {
+          highlightDecorations = ed.deltaDecorations(highlightDecorations, [])
+          return
+        }
 
         const decorations: Array<monaco.editor.IModelDeltaDecoration> = []
         const lines = content.split('\n')
@@ -388,11 +444,11 @@ export function useMonacoEditor(
                 decorations.push({
                   range: new monaco.Range(idx + 1, 1, idx + 1, 1),
                   options: {
-                    isWholeLine: rule.applyToWholeLine,
+                    isWholeLine: rule.applyToWholeLine !== false,
                     className: `highlight-rule-${rule.id}`,
-                    inlineClassName: rule.applyToWholeLine
-                      ? undefined
-                      : `highlight-inline-${rule.id}`,
+                    inlineClassName: rule.applyToWholeLine === false
+                      ? `highlight-inline-${rule.id}`
+                      : undefined,
                   },
                 })
               }
@@ -412,6 +468,11 @@ export function useMonacoEditor(
 
   onCleanup(() => {
     editorInstance()?.dispose()
+    // Remove injected highlight styles
+    if (highlightStyleElement) {
+      highlightStyleElement.remove()
+      highlightStyleElement = null
+    }
   })
 
   // API
@@ -424,6 +485,28 @@ export function useMonacoEditor(
     } else {
       ed.revealLine(line)
     }
+  }
+
+  const scrollToPosition = (line: number, column: number, center = true) => {
+    const ed = editorInstance()
+    const monaco = monacoInstance()
+    if (!ed || !monaco) return
+
+    const position = new monaco.Position(line, column)
+    if (center) {
+      ed.revealPositionInCenter(position)
+    } else {
+      ed.revealPosition(position)
+    }
+  }
+
+  const setSelection = (startLine: number, startCol: number, endLine: number, endCol: number) => {
+    const ed = editorInstance()
+    const monaco = monacoInstance()
+    if (!ed || !monaco) return
+
+    const selection = new monaco.Selection(startLine, startCol, endLine, endCol)
+    ed.setSelection(selection)
   }
 
   const revealLine = (line: number) => {
@@ -541,6 +624,8 @@ export function useMonacoEditor(
     editor: editorInstance,
     monaco: monacoInstance,
     scrollToLine,
+    scrollToPosition,
+    setSelection,
     revealLine,
     getVisibleRange,
     findNext,

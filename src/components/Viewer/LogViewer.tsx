@@ -162,6 +162,8 @@ export function LogViewer(props: LogViewerProps) {
           findNext: monacoAPI.findNext,
           findPrevious: monacoAPI.findPrevious,
           scrollToLine: monacoAPI.scrollToLine,
+          scrollToPosition: monacoAPI.scrollToPosition,
+          setSelection: monacoAPI.setSelection,
         }
         props.onMonacoReady(monacoIntegration, editor)
       }
