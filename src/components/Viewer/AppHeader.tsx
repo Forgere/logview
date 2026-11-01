@@ -5,12 +5,17 @@ import {
   CircleQuestionMark,
   Eye,
   EyeOff,
+  Github,
   MousePointer2,
   Pause,
   Play,
   Settings,
+  Sparkles,
   Terminal,
 } from 'lucide-solid'
+import { GITHUB_URL } from '~/lib/constants'
+import { APP_VERSION } from '~/lib/version'
+import { formatBytes } from '~/utils/formatters'
 
 export interface AppHeaderProps {
   viewMode: 'browse' | 'follow'
@@ -29,6 +34,7 @@ export interface AppHeaderProps {
   onStopWatch?: () => void
   onOpenSettings: () => void
   onSearchFocus: () => void
+  onOpenUpgradeGuide?: () => void
 }
 
 export function AppHeader(props: AppHeaderProps) {
@@ -46,14 +52,6 @@ export function AppHeader(props: AppHeaderProps) {
     }
   }
 
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
   // Optimize: Memoize expensive status computation
   const status = createMemo(() => {
     // Watch mode active
@@ -62,8 +60,7 @@ export function AppHeader(props: AppHeaderProps) {
         label: 'WATCHING',
         subLabel: `"${props.watchPattern}"`,
         icon: () => <Eye size={14} class="animate-pulse" />,
-        color: 'text-amber-400',
-        borderColor: 'border-amber-900/50',
+        color: 'text-warning',
       }
     }
 
@@ -72,8 +69,7 @@ export function AppHeader(props: AppHeaderProps) {
         label: 'FINISHED',
         subLabel: '',
         icon: () => <CircleCheck size={14} />,
-        color: 'text-gray-400',
-        borderColor: 'border-gray-700',
+        color: 'text-muted-foreground',
       }
     }
 
@@ -83,8 +79,7 @@ export function AppHeader(props: AppHeaderProps) {
         label: 'FOLLOWING',
         subLabel: '(Live)',
         icon: () => <CircleArrowDown size={14} class="animate-bounce" />,
-        color: 'text-green-400',
-        borderColor: 'border-green-900/50',
+        color: 'text-success',
       }
     }
 
@@ -92,8 +87,7 @@ export function AppHeader(props: AppHeaderProps) {
       label: 'BROWSING',
       subLabel: '(Paused view)',
       icon: () => <MousePointer2 size={14} />,
-      color: 'text-yellow-400',
-      borderColor: 'border-yellow-900/50',
+      color: 'text-warning',
     }
   })
 
@@ -107,12 +101,12 @@ export function AppHeader(props: AppHeaderProps) {
     <ErrorBoundary
       fallback={(err) => <div>Error in AppHeader, {err.message}</div>}
     >
-      <header class="flex-none bg-[#1e1e1e] border-b border-[#333] relative select-none z-20">
+      <header class="flex-none bg-surface border-b border-border relative select-none z-20">
         {/* Progress Line */}
         <Show when={props.isStreaming && props.progress < 100}>
-          <div class="absolute top-0 left-0 right-0 h-0.5 bg-[#333]">
+          <div class="absolute top-0 left-0 right-0 h-0.5 bg-surface-3">
             <div
-              class="h-full bg-blue-500 transition-all duration-300 ease-out"
+              class="h-full bg-accent-brand transition-all duration-300 ease-out"
               style={{ width: `${props.progress}%` }}
             />
           </div>
@@ -121,22 +115,22 @@ export function AppHeader(props: AppHeaderProps) {
         <div class="px-4 py-2 flex items-center justify-between">
           {/* Left Side: App Title & Actions */}
           <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2 text-blue-400 font-bold text-lg mr-2">
+            <div class="flex items-center gap-2 text-accent-brand font-bold text-lg mr-2">
               <Terminal size={20} />
               <span>HyperLog</span>
             </div>
 
             {/* View Mode Toggle - show during streaming or when file is loaded */}
             <Show when={props.fileName}>
-              <div class="flex items-center gap-2 border-l border-[#333] pl-4">
+              <div class="flex items-center gap-2 border-l border-border pl-4">
                 {/* Follow/Browse Toggle */}
                 <Show when={props.isStreaming}>
                   <button
                     onClick={props.onToggleViewMode}
                     class={`flex items-center gap-1.5 px-2 py-1 text-xs rounded border transition-colors ${
                       props.viewMode === 'follow'
-                        ? 'bg-green-900/30 text-green-400 border-green-700 hover:bg-green-900/50'
-                        : 'bg-gray-800 text-gray-400 border-gray-600 hover:bg-gray-700'
+                        ? 'bg-success/10 text-success border-success/40 hover:bg-success/20'
+                        : 'bg-surface-3 text-muted-foreground border-border hover:bg-surface-2'
                     }`}
                     title={
                       props.viewMode === 'follow'
@@ -157,7 +151,7 @@ export function AppHeader(props: AppHeaderProps) {
                 <Show when={props.isStreaming && props.onTogglePause}>
                   <button
                     onClick={props.onTogglePause}
-                    class="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-red-900/30 text-red-400 border border-red-700 hover:bg-red-900/50 transition-colors"
+                    class="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-level-error/10 text-level-error border border-level-error/40 hover:bg-level-error/20 transition-colors"
                   >
                     <Pause size={12} />
                     Pause
@@ -174,7 +168,7 @@ export function AppHeader(props: AppHeaderProps) {
                 >
                   <button
                     onClick={props.onTogglePause}
-                    class="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-green-900/30 text-green-400 border border-green-700 hover:bg-green-900/50 transition-colors"
+                    class="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-success/10 text-success border border-success/40 hover:bg-success/20 transition-colors"
                   >
                     <Play size={12} />
                     Resume
@@ -185,14 +179,14 @@ export function AppHeader(props: AppHeaderProps) {
                 <Show when={props.watchActive && props.watchPattern}>
                   <button
                     onClick={props.onStopWatch}
-                    class="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-amber-900/30 text-amber-400 border border-amber-700 hover:bg-amber-900/50 transition-colors"
+                    class="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-warning/10 text-warning border border-warning/40 hover:bg-warning/20 transition-colors"
                     title="Stop watching"
                   >
                     <Eye size={12} class="animate-pulse" />
                     <span class="max-w-[100px] truncate">
                       "{props.watchPattern}"
                     </span>
-                    <span class="text-amber-600">×</span>
+                    <span class="text-warning/70">×</span>
                   </button>
                 </Show>
               </div>
@@ -201,28 +195,28 @@ export function AppHeader(props: AppHeaderProps) {
 
           {/* Right Side: Consolidated Status & Info */}
           <div class="flex items-center gap-4">
-            <div class="flex items-center gap-6 text-xs text-gray-500 border-r border-[#333] pr-4">
+            <div class="flex items-center gap-6 text-xs text-muted-foreground border-r border-border pr-4">
               {/* Consolidated Status Indicator */}
               <div
                 class={`flex items-center gap-2 font-bold ${status().color} transition-colors`}
               >
                 {status().icon()}
                 <span>{status().label}</span>
-                <span class="font-normal text-gray-500">
+                <span class="font-normal text-muted-foreground">
                   {status().subLabel}
                 </span>
               </div>
 
               {/* File Metadata */}
               <Show when={showFileMetadata()}>
-                <div class="flex flex-col items-end leading-tight border-l border-[#333] pl-6 sm:flex">
+                <div class="flex flex-col items-end leading-tight border-l border-border pl-6 sm:flex">
                   <span
-                    class="text-gray-300 max-w-[200px] truncate"
+                    class="text-surface-foreground max-w-[200px] truncate"
                     title={props.fileName!}
                   >
                     {props.fileName}
                   </span>
-                  <span class="text-[10px] text-gray-600">
+                  <span class="text-[10px] text-muted-foreground">
                     {formattedFileSize()}
                   </span>
                 </div>
@@ -236,18 +230,37 @@ export function AppHeader(props: AppHeaderProps) {
 
             <button
               onClick={props.onOpenSettings}
-              class="text-gray-500 hover:text-gray-300 transition-colors"
+              class="text-muted-foreground hover:text-foreground transition-colors"
               title="Settings & Configuration"
             >
               <Settings size={18} />
             </button>
             <button
               onClick={props.onOpenShortcuts}
-              class="text-gray-500 hover:text-gray-300 transition-colors"
+              class="text-muted-foreground hover:text-foreground transition-colors"
               title="Keyboard Shortcuts"
             >
               <CircleQuestionMark size={18} />
             </button>
+            <Show when={props.onOpenUpgradeGuide}>
+              <button
+                onClick={props.onOpenUpgradeGuide}
+                class="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                title={`What's new in ${APP_VERSION}`}
+              >
+                <Sparkles size={18} />
+                <span class="font-mono text-[10px]">{APP_VERSION}</span>
+              </button>
+            </Show>
+            <a
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noreferrer"
+              class="text-muted-foreground hover:text-foreground transition-colors"
+              title="View source on GitHub"
+            >
+              <Github size={18} />
+            </a>
           </div>
         </div>
 
@@ -261,41 +274,5 @@ export function AppHeader(props: AppHeaderProps) {
         />
       </header>
     </ErrorBoundary>
-  )
-}
-
-// Utility functions that might be used elsewhere
-export { formatBytes } from '~/utils/formatters' // Assuming this exists or we'll create it
-
-// Re-export types for consistency
-// export type { ViewMode } from '~/types' // Commented out to avoid conflict with local ViewMode type
-
-// Alternative compact header for different layouts
-export function CompactHeader(
-  props: Pick<AppHeaderProps, 'onOpenSettings' | 'onOpenShortcuts'>,
-) {
-  return (
-    <header class="flex-none bg-[#1e1e1e] border-b border-[#333] px-4 py-2 flex items-center justify-between">
-      <div class="flex items-center gap-2 text-blue-400 font-bold text-lg">
-        <Terminal size={20} />
-        <span>HyperLog</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <button
-          onClick={props.onOpenSettings}
-          class="text-gray-500 hover:text-gray-300 transition-colors"
-          title="Settings"
-        >
-          <Settings size={18} />
-        </button>
-        <button
-          onClick={props.onOpenShortcuts}
-          class="text-gray-500 hover:text-gray-300 transition-colors"
-          title="Keyboard Shortcuts"
-        >
-          <CircleQuestionMark size={18} />
-        </button>
-      </div>
-    </header>
   )
 }

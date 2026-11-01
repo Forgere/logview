@@ -7,8 +7,10 @@ import {
   on,
 } from 'solid-js'
 import { Bookmark } from 'lucide-solid'
+import type { Accessor } from 'solid-js'
 import type {
   HighlightRule,
+  LogLevel,
   LogMarker,
   MarkerRange,
   SearchMatch,
@@ -17,6 +19,7 @@ import type {
 import type * as monaco from 'monaco-editor'
 import { useMonacoEditor } from '~/hooks/useMonacoEditor'
 import { LogViewerErrorBoundary } from '~/components/ErrorBoundary'
+import { buildSearchRegex } from '~/utils/searchHelpers'
 
 import { useSearch } from '~/stores'
 
@@ -48,6 +51,11 @@ interface LogViewerProps {
   updateMatches?: (lines?: Array<SearchMatch>) => void
   // Go to line
   onGoToLine?: () => void
+  // Line filtering
+  excludedLevels?: Accessor<Set<LogLevel>>
+  searchOnly?: Accessor<boolean>
+  // Cursor position reporter
+  onCursorChange?: (line: number, column: number) => void
 }
 
 export function LogViewer(props: LogViewerProps) {
@@ -100,6 +108,9 @@ export function LogViewer(props: LogViewerProps) {
     searchMatches,
     currentMatchIndex,
     markerLines,
+    excludedLevels: props.excludedLevels,
+    searchOnly: props.searchOnly,
+    onCursorChange: props.onCursorChange,
     onSelectionChange: (selection) => {
       if (selection && props.onSelectionChange) {
         props.onSelectionChange(selection)
@@ -217,13 +228,29 @@ export function LogViewer(props: LogViewerProps) {
         const model = editor.getModel()
         if (!model) return
 
+        const regex = buildSearchRegex({
+          query,
+          isRegex,
+          caseSensitive: isCaseSensitive,
+          wholeWord: isWholeWord,
+        })
+
+        if (!regex) {
+          batch(() => {
+            setSearchMatches([])
+            searchActions.goToMatch(0)
+            props.onSearchMatchesChanged?.(0, -1)
+          })
+          return
+        }
+
         try {
           const matches = model.findMatches(
-            isWholeWord ? `/\\b${query}\\b/` : query,
+            regex.source,
             false,
-            isWholeWord || isRegex,
-            isCaseSensitive,
-            isWholeWord ? null : '',
+            true,
+            false,
+            null,
             true,
             Number.MAX_SAFE_INTEGER,
           )
@@ -282,14 +309,12 @@ export function LogViewer(props: LogViewerProps) {
           props.onAddMarker(newRange, btn.text, context)
           setFloatingBtn(null)
 
-          // Clear selection
-          editor.setSelection(
-            new (monacoAPI.monaco()!.Range)(
-              btn.range.endLineNumber,
-              btn.range.endColumn,
-              btn.range.endLineNumber,
-              btn.range.endColumn,
-            ),
+          // Collapse the selection so the floating button's trigger clears.
+          monacoAPI.setSelection(
+            btn.range.endLineNumber,
+            btn.range.endColumn,
+            btn.range.endLineNumber,
+            btn.range.endColumn,
           )
         }
       }
@@ -300,7 +325,7 @@ export function LogViewer(props: LogViewerProps) {
     <LogViewerErrorBoundary>
       <div
         ref={containerRef}
-        class="h-full w-full overflow-hidden bg-[#1e1e1e] relative"
+        class="h-full w-full overflow-hidden bg-surface relative"
       >
         <div ref={editorContainerRef} class="h-full w-full" />
 
@@ -314,7 +339,7 @@ export function LogViewer(props: LogViewerProps) {
           >
             <button
               onClick={handleMarkClick}
-              class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-full shadow-lg text-xs font-medium transition-transform active:scale-95"
+              class="flex items-center gap-1.5 bg-accent-brand hover:bg-accent-brand/80 text-accent-brand-foreground px-3 py-1.5 rounded-full shadow-lg text-xs font-medium transition-transform active:scale-95"
             >
               <Bookmark size={12} fill="currentColor" />
               Mark Selection

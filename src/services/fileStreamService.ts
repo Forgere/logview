@@ -25,16 +25,12 @@ export class FileStreamer {
       const textStream = stream.pipeThrough(new TextDecoderStream())
       const reader = textStream.getReader()
 
-      while (true) {
-        if (signal.aborted) {
-          reader.cancel()
-          break
-        }
-
-        while (this.isPaused) {
+      const isAborted = () => signal.aborted
+      while (!isAborted()) {
+        while (this.isPaused && !isAborted()) {
           await new Promise((r) => setTimeout(r, 100))
-          if (signal.aborted) break
         }
+        if (isAborted()) break
 
         const { value, done } = await reader.read()
 
@@ -60,20 +56,12 @@ export class FileStreamer {
 
           while (lineBuffer.length >= MAX_BATCH) {
             const batch = lineBuffer.splice(0, MAX_BATCH)
-            if (
-              typeof window !== 'undefined' &&
-              'requestIdleCallback' in window &&
-              window.requestIdleCallback
-            ) {
+            if (typeof window.requestIdleCallback === 'function') {
               window.requestIdleCallback(() => options.onChunk(batch))
-            } else if (
-              typeof window !== 'undefined' &&
-              'requestAnimationFrame' in window &&
-              window.requestAnimationFrame
-            ) {
+            } else if (typeof window.requestAnimationFrame === 'function') {
               window.requestAnimationFrame(() => options.onChunk(batch))
             } else {
-              // Fallback for SSR or environments without these APIs
+              // Fallback for environments without these APIs
               options.onChunk(batch)
             }
           }

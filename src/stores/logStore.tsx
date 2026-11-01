@@ -1,9 +1,12 @@
-import { createContext, useContext } from 'solid-js'
+import { createContext, onMount, useContext } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import type { ParentProps } from 'solid-js'
 import type { FileInfo, ViewMode, ViewSettings, WatchMode } from '~/types'
 import type * as monaco from 'monaco-editor'
+import { UI_KEYS, readStored, writeStored } from '~/lib/persist'
+import { LogLevel } from '~/types'
 import { FileStreamer } from '~/services/fileStreamService'
+import { detectLevel } from '~/utils/logLevels'
 
 interface WatchState {
   pattern: string
@@ -19,6 +22,7 @@ interface LogState {
   viewMode: ViewMode
   lastScrollRequest: number
   lineCount: number
+  levelCounts: Record<LogLevel, number>
   watch: WatchState
 }
 
@@ -53,21 +57,38 @@ export function LogProvider(props: ParentProps) {
   let monacoInstance: monaco.editor.IStandaloneCodeEditor | null = null
   let newLineConfig: ViewSettings['newLineConfig'] | null = null
   let watchMatchCallback: WatchMatchCallback | null = null
-  let currentLineNumber = 0
-
   const [state, setState] = createStore<LogState>({
     file: null,
     isStreaming: false,
     progress: 0,
+    // Restored from localStorage in onMount below, not here: this provider
+    // runs on the server too, and reading localStorage during render would
+    // make the client's first hydration render disagree with the server HTML.
     viewMode: 'follow',
     lastScrollRequest: 0,
     lineCount: 0,
+    levelCounts: { INFO: 0, WARN: 0, ERROR: 0, DEBUG: 0 },
     watch: {
       pattern: '',
       mode: 'PAUSE_ALL',
       isActive: false,
       matchedLines: [],
     },
+  })
+
+  // `viewMode` and `watch.mode` are the only persisted fields: they record
+  // user intent. `watch.isActive`, `watch.pattern`, `watch.matchedLines`,
+  // streaming progress, line counts, `cursor` and `file` are all tied to a
+  // `File` handle and cannot survive a reload, so they are never stored.
+  onMount(() => {
+    setState({
+      viewMode: readStored<ViewMode>(UI_KEYS.viewMode, state.viewMode),
+    })
+    setState(
+      'watch',
+      'mode',
+      readStored<WatchMode>(UI_KEYS.watchMode, state.watch.mode),
+    )
   })
 
   // Check line for watch pattern match
@@ -154,11 +175,20 @@ export function LogProvider(props: ParentProps) {
       scrollTop + layoutInfo.height >= monacoInstance.getScrollHeight() - 5
     const startLine = model.getLineCount() + 1
 
-    // Check each line for watch matches before adding
+    const counted = new Map<LogLevel, number>()
+    // Check each line for watch matches and accumulate level counts
     chunk.forEach((line, idx) => {
       const lineNum = startLine + idx
+      const level = detectLevel(line)
+      counted.set(level, (counted.get(level) ?? 0) + 1)
       checkWatchMatch(line, lineNum)
     })
+    setState('levelCounts', (prev) => ({
+      INFO: prev.INFO + (counted.get(LogLevel.INFO) ?? 0),
+      WARN: prev.WARN + (counted.get(LogLevel.WARN) ?? 0),
+      ERROR: prev.ERROR + (counted.get(LogLevel.ERROR) ?? 0),
+      DEBUG: prev.DEBUG + (counted.get(LogLevel.DEBUG) ?? 0),
+    }))
 
     const BATCH_SIZE = 1000
     let index = 0
@@ -194,7 +224,6 @@ export function LogProvider(props: ParentProps) {
       } else {
         // Batch complete, update line count
         setState('lineCount', model.getLineCount())
-        currentLineNumber = model.getLineCount()
 
         // Scroll logic
         if (state.viewMode === 'follow' || atBottom) {
@@ -212,7 +241,6 @@ export function LogProvider(props: ParentProps) {
     loadFile: (file, config) => {
       actions.reset()
       newLineConfig = config
-      currentLineNumber = 0
 
       setState({
         file: {
@@ -248,13 +276,11 @@ export function LogProvider(props: ParentProps) {
         },
       })
     },
-
     reset: () => {
       if (streamer) streamer.cancel()
       streamer = null
       pendingBuffer = []
       newLineConfig = null
-      currentLineNumber = 0
 
       setState({
         file: null,
@@ -262,7 +288,7 @@ export function LogProvider(props: ParentProps) {
         progress: 0,
         viewMode: 'follow',
         lastScrollRequest: 0,
-        lineCount: 0,
+        levelCounts: { INFO: 0, WARN: 0, ERROR: 0, DEBUG: 0 },
         watch: {
           pattern: '',
           mode: 'PAUSE_ALL',
@@ -277,8 +303,13 @@ export function LogProvider(props: ParentProps) {
       }
     },
 
+    // Only this action persists: it is the explicit user toggle. The
+    // programmatic transitions (loadFile / reset / stream complete / pause /
+    // watch PAUSE_ALL) call setState directly and must NOT write the
+    // preference, because they are runtime state, not user intent.
     setViewMode: (mode: ViewMode) => {
       setState('viewMode', mode)
+      writeStored(UI_KEYS.viewMode, mode)
       if (mode === 'follow' && monacoInstance) {
         monacoInstance.setScrollTop(monacoInstance.getScrollHeight())
       }
@@ -290,6 +321,7 @@ export function LogProvider(props: ParentProps) {
 
     setWatchMode: (mode: WatchMode) => {
       setState('watch', 'mode', mode)
+      writeStored(UI_KEYS.watchMode, mode)
     },
 
     startWatch: () => {

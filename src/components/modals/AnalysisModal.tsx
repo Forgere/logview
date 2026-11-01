@@ -66,12 +66,12 @@ Check the 'logService' latency simulation parameters and verify the retry logic 
         <Show
           when={!isLoading()}
           fallback={
-            <div class="flex items-center justify-center h-32 text-purple-400 animate-pulse">
+            <div class="flex items-center justify-center h-32 text-accent-brand animate-pulse">
               <Sparkles size={24} class="mr-2" /> Analyzing log patterns...
             </div>
           }
         >
-          <div class="whitespace-pre-wrap leading-relaxed text-gray-300">
+          <div class="whitespace-pre-wrap leading-relaxed text-foreground">
             {text()}
           </div>
         </Show>

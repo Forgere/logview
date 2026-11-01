@@ -146,9 +146,9 @@ export function SearchBar(props: SearchBarProps) {
 
   return (
     <SearchErrorBoundary>
-      <div class="flex-none bg-[#252526] border-b border-[#333] px-4 py-2 flex items-center gap-3 shadow-sm">
+      <div class="flex-none bg-surface-2 border-b border-border px-4 py-2 flex items-center gap-3 shadow-sm">
         <div class="relative flex-1 max-w-2xl flex items-center">
-          <div class="absolute left-2 text-gray-500">
+          <div class="absolute left-2 text-muted-foreground">
             <Search size={14} />
           </div>
           <input
@@ -158,36 +158,36 @@ export function SearchBar(props: SearchBarProps) {
             onInput={(e) => props.setQuery(e.currentTarget.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search logs (Ctrl+F)..."
-            class="w-full h-8 bg-[#1e1e1e] border border-[#3e3e3e] rounded pl-8 pr-[160px] text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-200 placeholder-gray-500 transition-colors"
+            class="w-full h-8 bg-surface border border-border rounded pl-8 pr-[160px] text-sm focus:border-accent-brand focus:ring-1 focus:ring-accent-brand outline-none text-foreground placeholder-muted-foreground transition-colors"
           />
           <div class="absolute right-1 flex items-center gap-0.5 my-1 mr-1">
             <button
               onClick={props.onOpenHighlights}
-              class="p-1 rounded hover:bg-[#333] text-gray-500 hover:text-yellow-400 transition-colors"
+              class="p-1 rounded hover:bg-surface-3 text-muted-foreground hover:text-warning transition-colors"
               title="Highlight Settings"
             >
               <Highlighter class="w-4 h-4" />
             </button>
 
-            <div class="w-[1px] h-4 bg-[#333] mx-1" />
+            <div class="w-[1px] h-4 bg-border mx-1" />
 
             <button
               onClick={handleCaseToggle}
-              class={`p-1 rounded hover:bg-[#333] transition-colors ${props.caseSensitive ? 'text-blue-400 bg-[#3a3a3a]' : 'text-gray-500'}`}
+              class={`p-1 rounded hover:bg-surface-3 transition-colors ${props.caseSensitive ? 'text-accent-brand bg-surface-3' : 'text-muted-foreground'}`}
               title="Match Case (Alt+C)"
             >
               <CaseIcon class="w-4 h-4" />
             </button>
             <button
               onClick={handleWholeWordToggle}
-              class={`p-1 rounded hover:bg-[#333] transition-colors ${props.wholeWord ? 'text-blue-400 bg-[#3a3a3a]' : 'text-gray-500'}`}
+              class={`p-1 rounded hover:bg-surface-3 transition-colors ${props.wholeWord ? 'text-accent-brand bg-surface-3' : 'text-muted-foreground'}`}
               title="Match Whole Word (Alt+W)"
             >
               <WholeWordIcon class="w-4 h-4" />
             </button>
             <button
               onClick={handleRegexToggle}
-              class={`p-1 rounded hover:bg-[#333] transition-colors ${props.regexMode ? 'text-blue-400 bg-[#3a3a3a]' : 'text-gray-500'}`}
+              class={`p-1 rounded hover:bg-surface-3 transition-colors ${props.regexMode ? 'text-accent-brand bg-surface-3' : 'text-muted-foreground'}`}
               title="Use Regular Expression (Alt+R)"
             >
               <RegexIcon class="w-4 h-4" />
@@ -197,22 +197,22 @@ export function SearchBar(props: SearchBarProps) {
 
         <Show when={hasSearchQuery()}>
           <div class="flex items-center gap-2 text-sm animate-in fade-in duration-200">
-            <span class="text-gray-400 min-w-[60px] text-center font-mono text-xs">
+            <span class="text-muted-foreground min-w-[60px] text-center font-mono text-xs">
               {searchResultText()}
             </span>
-            <div class="flex bg-[#333] rounded border border-[#444]">
+            <div class="flex bg-surface-3 rounded border border-border">
               <button
                 onClick={props.onPrev}
                 disabled={navigationDisabled()}
-                class="p-1 hover:bg-[#444] text-gray-300 disabled:opacity-30 transition-colors"
+                class="p-1 hover:bg-surface-2 text-surface-foreground disabled:opacity-30 transition-colors"
               >
                 <ArrowUp size={16} />
               </button>
-              <div class="w-[1px] bg-[#444]" />
+              <div class="w-[1px] bg-border" />
               <button
                 onClick={props.onNext}
                 disabled={navigationDisabled()}
-                class="p-1 hover:bg-[#444] text-gray-300 disabled:opacity-30 transition-colors"
+                class="p-1 hover:bg-surface-2 text-surface-foreground disabled:opacity-30 transition-colors"
               >
                 <ArrowDown size={16} />
               </button>

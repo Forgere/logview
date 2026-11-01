@@ -38,7 +38,7 @@ export function GoToLineModal(props: GoToLineModalProps) {
   return (
     <Modal isOpen={props.isOpen} onClose={props.onClose} title="Go to Line">
       <form onSubmit={handleSubmit} class="flex flex-col gap-4 w-[300px]">
-        <div class="text-sm text-gray-400">
+        <div class="text-sm text-muted-foreground">
           Enter line number (1 - {props.maxLine}):
         </div>
         <input
@@ -48,20 +48,20 @@ export function GoToLineModal(props: GoToLineModalProps) {
           max={props.maxLine}
           value={input()}
           onInput={(e) => setInput(e.currentTarget.value)}
-          class="bg-[#121212] border border-[#444] rounded p-2 text-white outline-none focus:border-blue-500 transition-colors"
+          class="bg-surface border border-border rounded p-2 text-foreground outline-none focus:border-accent-brand transition-colors"
           placeholder="Line number..."
         />
         <div class="flex justify-end gap-2">
           <button
             type="button"
             onClick={props.onClose}
-            class="px-4 py-2 rounded text-sm text-gray-400 hover:bg-[#333] transition-colors"
+            class="px-4 py-2 rounded text-sm text-muted-foreground hover:bg-surface-3 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm transition-colors"
+            class="px-4 py-2 bg-accent-brand hover:bg-accent-brand/80 text-accent-brand-foreground rounded text-sm transition-colors"
           >
             Go
           </button>

@@ -30,19 +30,19 @@ const DefaultErrorFallback: Component<ErrorFallbackProps> = (props) => {
   }
 
   return (
-    <div class="flex items-center justify-center min-h-[200px] p-6 bg-[#1e1e1e] border border-[#333] rounded-lg">
+    <div class="flex items-center justify-center min-h-[200px] p-6 bg-surface border border-border rounded-lg">
       <div class="max-w-md w-full text-center">
         <div class="flex justify-center mb-4">
-          <div class="p-3 bg-red-900/20 rounded-full border border-red-900/50">
-            <TriangleAlert size={24} class="text-red-400" />
+          <div class="p-3 bg-level-error/20 rounded-full border border-level-error/50">
+            <TriangleAlert size={24} class="text-level-error" />
           </div>
         </div>
 
-        <h3 class="text-lg font-medium text-gray-200 mb-2">
+        <h3 class="text-lg font-medium text-foreground mb-2">
           {props.title || 'Something went wrong'}
         </h3>
 
-        <p class="text-sm text-gray-400 mb-4">
+        <p class="text-sm text-muted-foreground mb-4">
           {props.description ||
             'An unexpected error occurred. Please try refreshing the component.'}
         </p>
@@ -50,7 +50,7 @@ const DefaultErrorFallback: Component<ErrorFallbackProps> = (props) => {
         <div class="flex justify-center gap-3 mb-4">
           <button
             onClick={handleReset}
-            class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-sm font-medium transition-colors"
+            class="inline-flex items-center gap-2 px-4 py-2 bg-accent-brand hover:bg-accent-brand/80 text-accent-brand-foreground rounded-md text-sm font-medium transition-colors"
           >
             <RefreshCw size={14} />
             Try Again
@@ -61,13 +61,13 @@ const DefaultErrorFallback: Component<ErrorFallbackProps> = (props) => {
           <div class="text-left">
             <button
               onClick={() => setShowDetails(!showDetails())}
-              class="text-xs text-gray-500 hover:text-gray-300 transition-colors mb-2"
+              class="text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
             >
               {showDetails() ? 'Hide' : 'Show'} error details
             </button>
 
             <Show when={showDetails()}>
-              <div class="p-3 bg-[#252526] border border-[#333] rounded text-xs text-gray-400 font-mono whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
+              <div class="p-3 bg-surface-2 border border-border rounded text-xs text-muted-foreground font-mono whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
                 {props.error.message}
                 {'\n\n'}
                 {props.error.stack}

@@ -1,7 +1,14 @@
-import { createContext, createMemo, useContext } from 'solid-js'
+import {
+  createContext,
+  createEffect,
+  createMemo,
+  onMount,
+  useContext,
+} from 'solid-js'
 import { createStore } from 'solid-js/store'
 import type { ParentProps } from 'solid-js'
 import type { SearchMatch, SearchOptions } from '~/types'
+import { UI_KEYS, readStored, writeStored } from '~/lib/persist'
 import { buildSearchRegex } from '~/utils/searchHelpers'
 
 // Monaco integration interface
@@ -62,6 +69,32 @@ export function SearchProvider(props: ParentProps) {
     },
     matches: [],
     currentMatchIndex: 0,
+  })
+  // Only the three search *flags* survive a refresh. The query string, the
+  // match list, the current index and the Monaco integration are session
+  // state: they all point at content inside an editor that is rebuilt on
+  // every page load, so restoring them would be meaningless.
+  //
+  // `restored` gates the write effect: `onMount` runs AFTER the effect's first
+  // pass, so without the gate the effect would rewrite the stored defaults
+  // (`false`) before the real values are read. The gate keeps the first pass a
+  // no-op. Dependencies are still tracked (the `state.options.*` reads happen
+  // before the gate), so the effect re-runs whenever a flag changes later.
+  let restored = false
+  onMount(() => {
+    setState('options', {
+      isRegex: readStored(UI_KEYS.searchRegex, false),
+      caseSensitive: readStored(UI_KEYS.searchCase, false),
+      wholeWord: readStored(UI_KEYS.searchWholeWord, false),
+    })
+    restored = true
+  })
+
+  createEffect(() => {
+    if (!restored) return
+    writeStored(UI_KEYS.searchRegex, state.options.isRegex)
+    writeStored(UI_KEYS.searchCase, state.options.caseSensitive)
+    writeStored(UI_KEYS.searchWholeWord, state.options.wholeWord)
   })
 
   // Derived: current match

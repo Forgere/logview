@@ -1,145 +1,121 @@
-Welcome to your new TanStack app!
+# HyperLog (`logview`)
 
-# Getting Started
+A browser-based log viewer for large files: stream a log file from disk, search it, filter it by level, and bookmark the lines that matter.
 
-To run this application:
+Repository: <https://github.com/Forgere/logview>
+
+## Features
+
+- **Large-file streaming** — files are read in chunks on an idle callback, with live progress and follow/browse modes while the tail streams in.
+- **Monaco-based viewer** — virtualized rendering with a custom `logview` language and log-level syntax highlighting; the editor theme is generated from the app's own design tokens.
+- **Search** — plain text or regex, match case, whole word, match navigation, and a "matches only" view.
+- **Level filtering** — per-level chips (Error / Warn / Info / Debug) with live counts, plus a `Clear` action to bring every level back.
+- **Markers** — select text in the editor and mark it; the marker panel lists every bookmark with an inline note field, bulk selection, jump-to-line, copy and JSON export.
+- **Watch mode** — monitor incoming lines for a pattern, either pausing the stream on a hit (`PAUSE_ALL`) or dropping a marker and continuing (`MARK_ONLY`).
+- **Highlight rules** — user-defined regex/color rules, saved per file extension.
+- **Dialogs** — go to line, keyboard shortcuts, view settings, highlight rules, watch settings, marker compare, a marker summary view, and a "What's New" release guide.
+- **Preferences that stick** — search flags, view mode, watch mode, level filters and the marker panel layout are restored after a refresh.
+- **Installable & offline** — add it to your dock or home screen; after one online visit the app shell and editor are cached for offline use.
+- **Never uploads** — your log file is read from your local disk through a `File` handle and never leaves the browser.
+
+## Tech stack
+
+- [SolidJS](https://solidjs.com) with [TanStack Router / Start](https://tanstack.com/router) (file-based routes, SSR) and [TanStack Query](https://tanstack.com/query)
+- [Monaco Editor](https://microsoft.github.io/monaco-editor/), loaded at runtime
+- [Tailwind CSS v4](https://tailwindcss.com) with semantic design tokens in `src/styles.css`
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/) via `@cloudflare/vite-plugin`
+- [lucide-solid](https://lucide.dev) icons, [bun](https://bun.sh) as the package manager
+
+## Getting started
 
 ```bash
 bun install
-bun --bun run start
+bun dev          # dev server on http://localhost:3000
 ```
 
-# Building For Production
-
-To build this application for production:
+Every script in `package.json`:
 
 ```bash
-bun --bun run build
+bun run build    # production build (vite build)
+bun run serve    # preview the production build (vite preview)
+bun run start    # run the built Nitro server entry (.output/server/index.mjs)
+bun run check    # prettier --write . && eslint --fix
+bun run lint     # eslint
+bun run format   # prettier
+bun run test     # vitest run
+bun run deploy   # wrangler deploy
 ```
 
-## Styling
+## Deployment
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+`bun run build` produces a Cloudflare Worker (`name: "logview"` in `wrangler.jsonc`) and `bun run deploy` ships it with Wrangler. Authenticate first with `npx wrangler login`; add `routes` or `workers_dev` to `wrangler.jsonc` if you want a custom domain instead of the default `*.workers.dev` URL. The app keeps all state in the browser, so the same client build can also be served by any static host.
 
-## Solid-UI
+## Project structure
 
-This installation of Solid-UI follows the manual instructions but was modified to work with Tailwind V4.
+```
+src/
+├── routes/          # file-based routes: __root.tsx (shell), index.tsx (redirects to /viewer), viewer.tsx
+├── components/
+│   ├── Viewer/      # AppHeader, SearchBar, FilterBar, LogViewer, StatusBar, DragUpload
+│   ├── modals/      # GoToLine, Shortcuts, Settings, HighlightSettings, WatchSettings,
+│   │                # Compare, Analysis, UpgradeGuide
+│   ├── panels/      # MarkerPanel
+│   └── ui/          # Modal + ConfirmDialog
+├── stores/          # logStore, searchStore, viewStore, markerStore, toastStore
+├── hooks/           # useMonacoEditor — Monaco lifecycle, decorations, theming
+├── services/        # fileStreamService (chunked streaming), configService (per-extension storage), diffService
+├── lib/             # theme (CSS tokens → editor palette), persist, pwa, constants, version, utils
+├── utils/           # logLevels, searchHelpers, formatters
+├── types/           # shared TypeScript types and defaults
+├── data/            # releaseNotes shown in the "What's New" dialog
+└── styles.css       # Tailwind v4 entry point and the design tokens
 
-To install the components, run the following command (this install button):
-
-```bash
-npx solidui-cli@latest add button
+public/
+├── manifest.json    # web app manifest
+├── sw.js            # hand-written service worker
+└── icons/           # app icons (icon.svg, icon-192/512, maskable, apple-touch-icon)
 ```
 
-## Routing
+## Preferences & storage
 
-This project uses [TanStack Router](https://tanstack.com/router). The initial setup is a file based router. Which means that the routes are managed as files in `src/routes`.
+Both families live in `localStorage` for the site's origin:
 
-### Adding A Route
+| Key                     | Holds                                                                                                                                                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hyperlog_config_<ext>` | Per-file-extension view settings (font size, row height, wrapping, new-line handling) and highlight rules. `<ext>` is the lowercased extension such as `.log` or `.txt`, or `default` when the file has none.       |
+| `hyperlog_ui_*`         | App-wide preferences: search flags (regex / case / whole word), browse vs. follow view mode, watch mode, excluded levels and "matches only", marker panel open state and height, and the last seen release version. |
 
-To add a new route to your application just add another a new file in the `./src/routes` directory.
+Saved per-extension configs are merged over the built-in defaults when loaded, so adding a new setting never breaks an existing entry.
 
-TanStack will automatically generate the content of the route file for you.
+**Markers are not persisted.** They reference line numbers in the `File` you opened, and a browser `File` handle does not survive a reload — use the marker panel's `Export` button to save them as `markers-<timestamp>.json`.
 
-Now that you have two routes you can use a `Link` component to navigate between them.
+## Install & offline
 
-### Adding Links
+Install from your browser's address-bar install button (Chromium desktop) or the browser's install menu entry. The "What's New" dialog also shows an **Install app** button whenever your browser has signalled that installation is available; it disappears once the app runs installed.
 
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/solid-router`.
+Offline works after one online visit: on that visit the service worker caches the app shell plus the Monaco assets served from jsDelivr. The first load must be online, because the editor is fetched from a CDN. Service-worker generation with `vite-plugin-pwa` is broken under TanStack Start (upstream [TanStack/router#4988](https://github.com/TanStack/router/issues/4988)), so `public/sw.js` is written by hand.
 
-```tsx
-import { Link } from '@tanstack/solid-router'
-```
+## Keyboard shortcuts
 
-Then anywhere in your JSX you can use it like so:
+`Ctrl` means `Cmd` on macOS.
 
-```tsx
-<Link to="/about">About</Link>
-```
+| Shortcut                | Action                                            |
+| ----------------------- | ------------------------------------------------- |
+| `Ctrl+F`                | Focus search (loads the editor selection, if any) |
+| `Ctrl+G`                | Go to line                                        |
+| `Enter` / `Shift+Enter` | Next / previous match                             |
+| `Ctrl+M`                | Toggle "matches only"                             |
+| `F2` / `Shift+F2`       | Next / previous marker                            |
+| `Shift+?`               | Shortcut reference                                |
+| `Esc`                   | Close the open dialog, or clear the search        |
 
-This will create a link that will navigate to the `/about` route.
+## Contributing & history
 
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/solid/api/router/linkComponent).
+Issues and pull requests: <https://github.com/Forgere/logview>.
 
-### Using A Layout
+- [CHANGELOG.md](CHANGELOG.md) — release history.
+- [UPGRADE.md](UPGRADE.md) — what changes when you move to a new version, where settings are stored, and how offline installs work.
 
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you use the `<Outlet />` component.
+There is no license file in this repository; until one is added, treat the code as unlicensed and ask before reusing it.
 
-Here is an example layout that includes a header:
-
-```tsx
-import { Outlet, createRootRoute } from '@tanstack/solid-router'
-import { TanStackRouterDevtools } from '@tanstack/solid-router-devtools'
-
-import { Link } from '@tanstack/solid-router'
-
-export const Route = createRootRoute({
-  component: () => (
-    <>
-      <header>
-        <nav>
-          <Link to="/">Home</Link>
-          <Link to="/about">About</Link>
-        </nav>
-      </header>
-      <Outlet />
-      <TanStackRouterDevtools />
-    </>
-  ),
-})
-```
-
-The `<TanStackRouterDevtools />` component is not required so you can remove it if you don't want it in your layout.
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/solid/guide/routing-concepts#layouts).
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-const peopleRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/people',
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json() as Promise<{
-      results: {
-        name: string
-      }[]
-    }>
-  },
-  component: () => {
-    const data = peopleRoute.useLoaderData()
-    return (
-      <ul>
-        {data.results.map((person) => (
-          <li key={person.name}>{person.name}</li>
-        ))}
-      </ul>
-    )
-  },
-})
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/solid/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-## Linting & Formatting
-
-This project uses [eslint](https://eslint.org/) and [prettier](https://prettier.io/) for linting and formatting. Eslint is configured using [tanstack/eslint-config](https://tanstack.com/config/latest/docs/eslint). The following scripts are available:
-
-```bash
-bun --bun run lint
-bun --bun run format
-bun --bun run check
-```
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
+This project is a SolidJS port of an earlier React app; `todo.md` tracks what has been carried over.

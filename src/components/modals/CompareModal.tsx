@@ -317,7 +317,7 @@ export function CompareModal(props: CompareModalProps) {
           style={{ top: `${y1 - 16}px`, left: `${BASE_X - 16}px` }}
           onMouseDown={(e) => handleMouseDown(e, 'start')}
         >
-          <div class="w-3.5 h-3.5 bg-[#1e1e1e] rounded-full border-[3px] border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] group-hover:scale-125 transition-transform" />
+          <div class="w-3.5 h-3.5 bg-surface rounded-full border-[3px] border-accent-brand shadow-[0_0_10px_var(--color-accent-brand)] group-hover:scale-125 transition-transform" />
         </div>
 
         {/* Target Anchor (B) */}
@@ -326,7 +326,7 @@ export function CompareModal(props: CompareModalProps) {
           style={{ top: `${y2 - 16}px`, left: `${TARGET_X - 16}px` }}
           onMouseDown={(e) => handleMouseDown(e, 'end')}
         >
-          <div class="w-3.5 h-3.5 bg-[#1e1e1e] rounded-full border-[3px] border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] group-hover:scale-125 transition-transform" />
+          <div class="w-3.5 h-3.5 bg-surface rounded-full border-[3px] border-success shadow-[0_0_10px_var(--color-success)] group-hover:scale-125 transition-transform" />
         </div>
       </div>
     )
@@ -343,7 +343,7 @@ export function CompareModal(props: CompareModalProps) {
         {/* LEFT SIDEBAR: Marker List & Anchors */}
         <div
           ref={listRef}
-          class="w-[300px] bg-[#141414] border-r border-[#333] flex flex-col relative select-none shadow-xl z-10 overflow-y-auto custom-scrollbar"
+          class="w-[300px] bg-background border-r border-border flex flex-col relative select-none shadow-xl z-10 overflow-y-auto custom-scrollbar"
         >
           <div
             class="relative w-full"
@@ -358,7 +358,7 @@ export function CompareModal(props: CompareModalProps) {
 
                 return (
                   <div
-                    class={`absolute left-0 right-0 border-b border-[#333] flex flex-col justify-center px-4 pl-12 hover:bg-[#1f1f1f] transition-colors cursor-pointer group ${isLeft() || isRight() ? 'bg-[#1f1f1f]' : ''}`}
+                    class={`absolute left-0 right-0 border-b border-border flex flex-col justify-center px-4 pl-12 hover:bg-surface-2 transition-colors cursor-pointer group ${isLeft() || isRight() ? 'bg-surface-2' : ''}`}
                     style={{
                       height: `${ITEM_HEIGHT}px`,
                       top: `${idx() * ITEM_HEIGHT}px`,
@@ -369,28 +369,28 @@ export function CompareModal(props: CompareModalProps) {
                   >
                     <div class="flex items-center justify-between mb-1">
                       <span
-                        class={`font-mono text-xs ${isLeft() ? 'text-blue-400 font-bold' : isRight() ? 'text-emerald-400 font-bold' : 'text-gray-500'}`}
+                        class={`font-mono text-xs ${isLeft() ? 'text-accent-brand font-bold' : isRight() ? 'text-success font-bold' : 'text-muted-foreground'}`}
                       >
                         L{m.range.startLineNumber}
                       </span>
-                      <span class="text-[10px] text-gray-500">
+                      <span class="text-[10px] text-muted-foreground">
                         {m.timestamp}
                       </span>
                     </div>
                     <div
-                      class={`text-xs truncate font-mono ${isLeft() || isRight() ? 'text-white' : 'text-gray-400 opacity-60'}`}
+                      class={`text-xs truncate font-mono ${isLeft() || isRight() ? 'text-foreground' : 'text-muted-foreground opacity-60'}`}
                     >
                       {m.selectedText}
                     </div>
 
                     {/* Set A/B Buttons */}
-                    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-[#141414] border border-[#333] rounded p-0.5 shadow-lg z-40">
+                    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background border border-border rounded p-0.5 shadow-lg z-40">
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           setCompareIndices([idx(), compareIndices()[1]])
                         }}
-                        class="w-5 h-5 flex items-center justify-center text-[9px] font-bold bg-blue-900 text-blue-100 hover:bg-blue-600 rounded"
+                        class="w-5 h-5 flex items-center justify-center text-[9px] font-bold bg-accent-brand/20 text-accent-brand hover:bg-accent-brand hover:text-accent-brand-foreground rounded"
                         title="Set as Base (A)"
                       >
                         A
@@ -400,7 +400,7 @@ export function CompareModal(props: CompareModalProps) {
                           e.stopPropagation()
                           setCompareIndices([compareIndices()[0], idx()])
                         }}
-                        class="w-5 h-5 flex items-center justify-center text-[9px] font-bold bg-emerald-900 text-emerald-100 hover:bg-emerald-600 rounded"
+                        class="w-5 h-5 flex items-center justify-center text-[9px] font-bold bg-success/20 text-success hover:bg-success hover:text-background rounded"
                         title="Set as Target (B)"
                       >
                         B
@@ -414,32 +414,34 @@ export function CompareModal(props: CompareModalProps) {
         </div>
 
         {/* RIGHT CONTENT: Split Diff View */}
-        <div class="flex-1 flex flex-col bg-[#1e1e1e] min-w-0">
+        <div class="flex-1 flex flex-col bg-surface min-w-0">
           {/* Top Panel: Base (A) */}
-          <div class="flex-1 flex flex-col min-h-0 border-b border-[#333]">
-            <div class="h-10 bg-[#252526] border-b border-[#333] flex items-center justify-between px-4 select-none shrink-0">
+          <div class="flex-1 flex flex-col min-h-0 border-b border-border">
+            <div class="h-10 bg-surface-2 border-b border-border flex items-center justify-between px-4 select-none shrink-0">
               <div class="flex items-center gap-2">
-                <div class="w-5 h-5 rounded bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                <div class="w-5 h-5 rounded bg-accent-brand text-accent-brand-foreground flex items-center justify-center text-xs font-bold">
                   A
                 </div>
-                <span class="text-xs font-bold text-gray-400 uppercase">
+                <span class="text-xs font-bold text-muted-foreground uppercase">
                   Base
                 </span>
                 <Show when={left()}>
                   {(l) => (
-                    <span class="text-xs text-gray-500 font-mono ml-2">
+                    <span class="text-xs text-muted-foreground font-mono ml-2">
                       Line {l().range.startLineNumber}
                     </span>
                   )}
                 </Show>
               </div>
             </div>
-            <div class="flex-1 overflow-auto p-4 custom-scrollbar bg-[#1a1a1a]">
-              <div class="font-mono text-sm leading-6 text-gray-300 whitespace-pre-wrap break-all">
+            <div class="flex-1 overflow-auto p-4 custom-scrollbar bg-background">
+              <div class="font-mono text-sm leading-6 text-foreground whitespace-pre-wrap break-all">
                 <Show
                   when={diffResult()}
                   fallback={
-                    <span class="text-gray-600 italic">Select a marker...</span>
+                    <span class="text-muted-foreground italic">
+                      Select a marker...
+                    </span>
                   }
                 >
                   <For each={diffResult()}>
@@ -449,7 +451,7 @@ export function CompareModal(props: CompareModalProps) {
                           <span class="opacity-80">{part.value}</span>
                         </Show>
                         <Show when={part.type === 'delete'}>
-                          <span class="bg-red-500/20 text-red-200 border-b border-red-500/40">
+                          <span class="bg-level-error/20 text-level-error border-b border-level-error/40">
                             {part.value}
                           </span>
                         </Show>
@@ -463,29 +465,31 @@ export function CompareModal(props: CompareModalProps) {
 
           {/* Bottom Panel: Target (B) */}
           <div class="flex-1 flex flex-col min-h-0">
-            <div class="h-10 bg-[#252526] border-b border-[#333] flex items-center justify-between px-4 select-none shrink-0">
+            <div class="h-10 bg-surface-2 border-b border-border flex items-center justify-between px-4 select-none shrink-0">
               <div class="flex items-center gap-2">
-                <div class="w-5 h-5 rounded bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">
+                <div class="w-5 h-5 rounded bg-success text-background flex items-center justify-center text-xs font-bold">
                   B
                 </div>
-                <span class="text-xs font-bold text-gray-400 uppercase">
+                <span class="text-xs font-bold text-muted-foreground uppercase">
                   Target
                 </span>
                 <Show when={right()}>
                   {(r) => (
-                    <span class="text-xs text-gray-500 font-mono ml-2">
+                    <span class="text-xs text-muted-foreground font-mono ml-2">
                       Line {r().range.startLineNumber}
                     </span>
                   )}
                 </Show>
               </div>
             </div>
-            <div class="flex-1 overflow-auto p-4 custom-scrollbar bg-[#1a1a1a]">
-              <div class="font-mono text-sm leading-6 text-gray-300 whitespace-pre-wrap break-all">
+            <div class="flex-1 overflow-auto p-4 custom-scrollbar bg-background">
+              <div class="font-mono text-sm leading-6 text-foreground whitespace-pre-wrap break-all">
                 <Show
                   when={diffResult()}
                   fallback={
-                    <span class="text-gray-600 italic">Select a marker...</span>
+                    <span class="text-muted-foreground italic">
+                      Select a marker...
+                    </span>
                   }
                 >
                   <For each={diffResult()}>
@@ -495,7 +499,7 @@ export function CompareModal(props: CompareModalProps) {
                           <span class="opacity-80">{part.value}</span>
                         </Show>
                         <Show when={part.type === 'insert'}>
-                          <span class="bg-emerald-500/20 text-emerald-200 border-b border-emerald-500/40">
+                          <span class="bg-success/20 text-success border-b border-success/40">
                             {part.value}
                           </span>
                         </Show>

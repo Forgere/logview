@@ -11,6 +11,9 @@ const shortcuts = [
   { label: 'Go to Line', key: 'Ctrl + G' },
   { label: 'Next Match', key: 'Enter' },
   { label: 'Previous Match', key: 'Shift + Enter' },
+  { label: 'Next Marker', key: 'F2' },
+  { label: 'Previous Marker', key: 'Shift + F2' },
+  { label: 'Toggle Matches Only', key: 'Ctrl + M' },
   { label: 'Close Dialog', key: 'Esc' },
   { label: 'Help', key: 'Shift + ?' },
 ]
@@ -26,9 +29,9 @@ export function ShortcutsModal(props: ShortcutsModalProps) {
       <div class="space-y-2 text-sm">
         <For each={shortcuts}>
           {(s) => (
-            <div class="flex justify-between border-b border-[#333] pb-2 last:border-0">
-              <span class="text-gray-400">{s.label}</span>
-              <span class="font-mono bg-[#333] px-1.5 rounded text-gray-200 text-xs py-0.5">
+            <div class="flex justify-between border-b border-border pb-2 last:border-0">
+              <span class="text-muted-foreground">{s.label}</span>
+              <span class="font-mono bg-surface-3 px-1.5 rounded text-foreground text-xs py-0.5">
                 {s.key}
               </span>
             </div>

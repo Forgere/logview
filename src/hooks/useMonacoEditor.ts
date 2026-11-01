@@ -2,7 +2,14 @@ import { createEffect, createSignal, on, onCleanup, onMount } from 'solid-js'
 import loader from '@monaco-editor/loader'
 import type { Accessor } from 'solid-js'
 import type * as monaco from 'monaco-editor'
-import type { HighlightRule, SearchMatch, ViewSettings } from '~/types'
+import type {
+  HighlightRule,
+  LogLevel,
+  SearchMatch,
+  ViewSettings,
+} from '~/types'
+import { detectLevel } from '~/utils/logLevels'
+import { readPalette } from '~/lib/theme'
 
 export interface UseMonacoEditorOptions {
   content: Accessor<string>
@@ -11,6 +18,10 @@ export interface UseMonacoEditorOptions {
   searchMatches: Accessor<Array<SearchMatch>>
   currentMatchIndex: Accessor<number>
   markerLines: Accessor<Array<number>>
+  // Line filtering: hide lines whose level is in excludedLevels, and/or
+  // hide lines that are not search matches.
+  excludedLevels?: Accessor<Set<LogLevel>>
+  searchOnly?: Accessor<boolean>
   onSelectionChange?: (
     selection: {
       text: string
@@ -18,6 +29,7 @@ export interface UseMonacoEditorOptions {
       line: string
     } | null,
   ) => void
+  onCursorChange?: (line: number, column: number) => void
   onScroll?: (scrollTop: number, visibleRange: monaco.Range) => void
   // Search functionality access
   setSearchQuery?: (query: string) => void
@@ -119,29 +131,35 @@ export function useMonacoEditor(
     // Configure Monaco loader
     loader.config({
       paths: {
-        vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs',
+        vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs',
       },
     })
 
     const monaco = await loader.init()
     setMonacoInstance(monaco)
 
-    // Define custom dark theme
+    // Define custom dark theme, syncing colors to the app design tokens.
+    const p = readPalette()
     monaco.editor.defineTheme('hyperlog-dark', {
       base: 'vs-dark',
       inherit: true,
       rules: [
-        { token: 'log-error', foreground: 'ff6b6b', fontStyle: 'bold' },
-        { token: 'log-warn', foreground: 'facc15' },
-        { token: 'log-info', foreground: '94a3b8' },
-        { token: 'log-debug', foreground: '6b7280' },
-        { token: 'log-timestamp', foreground: '569cd6' },
+        {
+          token: 'log-error',
+          foreground: p.error.replace('#', ''),
+          fontStyle: 'bold',
+        },
+        { token: 'log-warn', foreground: p.warning.replace('#', '') },
+        { token: 'log-info', foreground: p.info.replace('#', '') },
+        { token: 'log-debug', foreground: p.debug.replace('#', '') },
+        { token: 'log-timestamp', foreground: p.timestamp.replace('#', '') },
       ],
       colors: {
-        'editor.background': '#1e1e1e',
-        'editor.lineHighlightBackground': '#2a2d2e',
-        'editorLineNumber.foreground': '#6b7280',
-        'editorLineNumber.activeForeground': '#ffffff',
+        'editor.background': p.background,
+        'editor.selectionBackground': p.selection,
+        'editor.lineHighlightBackground': p.lineHighlight,
+        'editorLineNumber.foreground': p.lineNumber,
+        'editorLineNumber.activeForeground': p.lineNumberActive,
       },
     })
 
@@ -230,6 +248,12 @@ export function useMonacoEditor(
         }
       }
     })
+    // Cursor position handler (status bar)
+    ed.onDidChangeCursorPosition(
+      (e: monaco.editor.ICursorPositionChangedEvent) => {
+        options.onCursorChange?.(e.position.lineNumber, e.position.column)
+      },
+    )
 
     // Scroll handler
     ed.onDidScrollChange(() => {
@@ -405,6 +429,27 @@ export function useMonacoEditor(
               },
             },
           })
+
+          // Inline highlight for the exact matched column range when known.
+          if (
+            match.startColumn !== undefined &&
+            match.endColumn !== undefined &&
+            match.endColumn > match.startColumn
+          ) {
+            decorations.push({
+              range: new monaco.Range(
+                lineNumber,
+                match.startColumn + 1,
+                lineNumber,
+                match.endColumn + 1,
+              ),
+              options: {
+                inlineClassName: isCurrentMatch
+                  ? 'search-match-inline active'
+                  : 'search-match-inline',
+              },
+            })
+          }
         })
 
         searchDecorations = ed.deltaDecorations(searchDecorations, decorations)
@@ -526,6 +571,69 @@ export function useMonacoEditor(
           highlightDecorations,
           decorations,
         )
+      },
+    ),
+  )
+  // Line filtering via Monaco hidden areas (level filter + search-only).
+  // `setHiddenAreas` exists on the editor at runtime but is not in the public
+  // type surface, so we narrow to the known shape.
+  type EditorWithHidden = monaco.editor.IStandaloneCodeEditor & {
+    setHiddenAreas: (ranges: Array<monaco.IRange>) => void
+  }
+  createEffect(
+    on(
+      () =>
+        [
+          editorInstance()?.getModel()?.getLineCount() ?? 0,
+          options.excludedLevels?.(),
+          options.searchOnly?.(),
+          options.searchMatches(),
+        ] as const,
+      () => {
+        const ed = editorInstance() as EditorWithHidden | null
+        const model = ed?.getModel()
+        if (!ed || !model) return
+
+        const excluded = options.excludedLevels?.() ?? new Set<LogLevel>()
+        const searchOnly = options.searchOnly?.() ?? false
+        const matchLines = new Set<number>(
+          searchOnly ? options.searchMatches().map((m) => m.lineIndex + 1) : [],
+        )
+
+        if (excluded.size === 0 && !searchOnly) {
+          ed.setHiddenAreas([])
+          return
+        }
+
+        const total = model.getLineCount()
+        const hiddenAreas: Array<monaco.IRange> = []
+        let start = -1
+        for (let i = 1; i <= total; i++) {
+          const level = detectLevel(model.getLineContent(i))
+          const levelOk = excluded.size === 0 || !excluded.has(level)
+          const searchOk = !searchOnly || matchLines.has(i)
+          const hide = !levelOk || !searchOk
+          if (hide) {
+            if (start === -1) start = i
+          } else if (start !== -1) {
+            hiddenAreas.push({
+              startLineNumber: start,
+              startColumn: 1,
+              endLineNumber: i - 1,
+              endColumn: 1,
+            })
+            start = -1
+          }
+        }
+        if (start !== -1) {
+          hiddenAreas.push({
+            startLineNumber: start,
+            startColumn: 1,
+            endLineNumber: total,
+            endColumn: 1,
+          })
+        }
+        ed.setHiddenAreas(hiddenAreas)
       },
     ),
   )

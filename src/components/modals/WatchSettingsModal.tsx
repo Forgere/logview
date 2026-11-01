@@ -41,7 +41,7 @@ export function WatchSettingsModal(props: WatchSettingsModalProps) {
     >
       <form onSubmit={handleSubmit} class="flex flex-col gap-6">
         <div class="space-y-2">
-          <label class="text-xs font-medium text-gray-400 uppercase">
+          <label class="text-xs font-medium text-muted-foreground uppercase">
             Watch Pattern
           </label>
           <input
@@ -49,18 +49,18 @@ export function WatchSettingsModal(props: WatchSettingsModalProps) {
             value={pattern()}
             onInput={(e) => setPattern(e.currentTarget.value)}
             placeholder="e.g. 'FATAL', 'Exception', 'timeout'"
-            class="w-full bg-[#1e1e1e] border border-[#444] rounded p-2.5 text-sm text-white outline-none focus:border-amber-500 transition-colors font-mono"
+            class="w-full bg-surface border border-border rounded p-2.5 text-sm text-foreground outline-none focus:border-warning transition-colors font-mono"
             autofocus
           />
         </div>
 
         <div class="space-y-3">
-          <label class="text-xs font-medium text-gray-400 uppercase">
+          <label class="text-xs font-medium text-muted-foreground uppercase">
             Action on Match
           </label>
 
           <label
-            class={`flex items-start gap-3 p-3 rounded border cursor-pointer transition-all ${mode() === 'PAUSE_ALL' ? 'bg-amber-950/30 border-amber-700' : 'bg-[#252526] border-[#333] hover:border-[#444]'}`}
+            class={`flex items-start gap-3 p-3 rounded border cursor-pointer transition-all ${mode() === 'PAUSE_ALL' ? 'bg-warning/10 border-warning/40' : 'bg-surface-2 border-border hover:border-muted-foreground'}`}
           >
             <input
               type="radio"
@@ -70,11 +70,11 @@ export function WatchSettingsModal(props: WatchSettingsModalProps) {
               class="mt-1"
             />
             <div class="flex-1">
-              <div class="flex items-center gap-2 text-sm font-medium text-gray-200 mb-0.5">
-                <PauseCircle size={16} class="text-amber-500" />
+              <div class="flex items-center gap-2 text-sm font-medium text-foreground mb-0.5">
+                <PauseCircle size={16} class="text-warning" />
                 Pause Viewer
               </div>
-              <p class="text-xs text-gray-500">
+              <p class="text-xs text-muted-foreground">
                 Switches to browse mode at the matched line. The file continues
                 loading in the background.
               </p>
@@ -82,7 +82,7 @@ export function WatchSettingsModal(props: WatchSettingsModalProps) {
           </label>
 
           <label
-            class={`flex items-start gap-3 p-3 rounded border cursor-pointer transition-all ${mode() === 'MARK_ONLY' ? 'bg-amber-950/30 border-amber-700' : 'bg-[#252526] border-[#333] hover:border-[#444]'}`}
+            class={`flex items-start gap-3 p-3 rounded border cursor-pointer transition-all ${mode() === 'MARK_ONLY' ? 'bg-warning/10 border-warning/40' : 'bg-surface-2 border-border hover:border-muted-foreground'}`}
           >
             <input
               type="radio"
@@ -92,11 +92,11 @@ export function WatchSettingsModal(props: WatchSettingsModalProps) {
               class="mt-1"
             />
             <div class="flex-1">
-              <div class="flex items-center gap-2 text-sm font-medium text-gray-200 mb-0.5">
-                <Bookmark size={16} class="text-amber-500" />
+              <div class="flex items-center gap-2 text-sm font-medium text-foreground mb-0.5">
+                <Bookmark size={16} class="text-warning" />
                 Just Add Marker
               </div>
-              <p class="text-xs text-gray-500">
+              <p class="text-xs text-muted-foreground">
                 Continues following and streaming. Automatically adds a bookmark
                 to every matching line.
               </p>
@@ -104,17 +104,17 @@ export function WatchSettingsModal(props: WatchSettingsModalProps) {
           </label>
         </div>
 
-        <div class="flex justify-end gap-3 border-t border-[#333] pt-4">
+        <div class="flex justify-end gap-3 border-t border-border pt-4">
           <button
             type="button"
             onClick={props.onClose}
-            class="px-4 py-2 rounded text-sm text-gray-400 hover:bg-[#333] transition-colors"
+            class="px-4 py-2 rounded text-sm text-muted-foreground hover:bg-surface-3 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
-            class="px-4 py-2 bg-amber-700 hover:bg-amber-600 text-white rounded text-sm font-medium transition-colors flex items-center gap-2"
+            class="px-4 py-2 bg-warning hover:bg-warning/80 text-background rounded text-sm font-medium transition-colors flex items-center gap-2"
           >
             <Play size={14} fill="currentColor" />
             Start Watch

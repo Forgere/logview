@@ -49,10 +49,10 @@ export function SettingsModal(props: SettingsModalProps) {
         {/* View Settings Section */}
         <div class="space-y-4">
           <div class="flex items-center justify-between">
-            <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+            <h4 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Display Options
             </h4>
-            <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] text-blue-400">
+            <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-accent-brand/10 border border-accent-brand/20 text-[10px] text-accent-brand">
               <CloudLightning size={10} />
               <span>
                 Auto-saved for <b>{props.currentExtension}</b>
@@ -61,14 +61,14 @@ export function SettingsModal(props: SettingsModalProps) {
           </div>
 
           {/* Wrap Lines Toggle */}
-          <div class="flex items-center justify-between p-3 bg-[#252526] rounded border border-[#333]">
+          <div class="flex items-center justify-between p-3 bg-surface-2 rounded border border-border">
             <div class="flex items-center gap-3">
-              <AlignJustify size={18} class="text-blue-400" />
+              <AlignJustify size={18} class="text-accent-brand" />
               <div>
-                <div class="text-sm font-medium text-gray-200">
+                <div class="text-sm font-medium text-foreground">
                   Text Wrapping
                 </div>
-                <div class="text-xs text-gray-500">
+                <div class="text-xs text-muted-foreground">
                   Wrap long lines to fit the window width.
                 </div>
               </div>
@@ -85,20 +85,20 @@ export function SettingsModal(props: SettingsModalProps) {
                 }
                 class="sr-only peer"
               />
-              <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div class="w-11 h-6 bg-surface-3 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-brand"></div>
             </label>
           </div>
 
           {/* Row Height Slider */}
-          <div class="p-3 bg-[#252526] rounded border border-[#333] space-y-3">
+          <div class="p-3 bg-surface-2 rounded border border-border space-y-3">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <MoveVertical size={16} class="text-blue-400" />
-                <span class="text-sm font-medium text-gray-200">
+                <MoveVertical size={16} class="text-accent-brand" />
+                <span class="text-sm font-medium text-foreground">
                   Row Height
                 </span>
               </div>
-              <span class="text-xs font-mono bg-[#333] px-2 py-0.5 rounded text-gray-300">
+              <span class="text-xs font-mono bg-surface-3 px-2 py-0.5 rounded text-surface-foreground">
                 {props.viewSettings.rowHeight}px
               </span>
             </div>
@@ -114,22 +114,24 @@ export function SettingsModal(props: SettingsModalProps) {
                   rowHeight: parseInt(e.currentTarget.value),
                 })
               }
-              class="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              class="w-full h-1 bg-surface-3 rounded-lg appearance-none cursor-pointer accent-accent-brand"
             />
-            <p class="text-[10px] text-gray-500 italic">
+            <p class="text-[10px] text-muted-foreground italic">
               Tip: Increase row height if Text Wrapping is enabled to prevent
               overlap.
             </p>
           </div>
 
           {/* Font Size Slider */}
-          <div class="p-3 bg-[#252526] rounded border border-[#333] space-y-3">
+          <div class="p-3 bg-surface-2 rounded border border-border space-y-3">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <Type size={16} class="text-blue-400" />
-                <span class="text-sm font-medium text-gray-200">Font Size</span>
+                <Type size={16} class="text-accent-brand" />
+                <span class="text-sm font-medium text-foreground">
+                  Font Size
+                </span>
               </div>
-              <span class="text-xs font-mono bg-[#333] px-2 py-0.5 rounded text-gray-300">
+              <span class="text-xs font-mono bg-surface-3 px-2 py-0.5 rounded text-surface-foreground">
                 {props.viewSettings.fontSize}px
               </span>
             </div>
@@ -145,20 +147,20 @@ export function SettingsModal(props: SettingsModalProps) {
                   fontSize: parseInt(e.currentTarget.value),
                 })
               }
-              class="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              class="w-full h-1 bg-surface-3 rounded-lg appearance-none cursor-pointer accent-accent-brand"
             />
           </div>
 
           {/* New Line On Match Config */}
-          <div class="p-3 bg-[#252526] rounded border border-[#333] space-y-3">
+          <div class="p-3 bg-surface-2 rounded border border-border space-y-3">
             <div class="flex items-center justify-between mb-2">
               <div class="flex items-center gap-2">
-                <Split size={16} class="text-blue-400" />
+                <Split size={16} class="text-accent-brand" />
                 <div>
-                  <div class="text-sm font-medium text-gray-200">
+                  <div class="text-sm font-medium text-foreground">
                     Custom Line Breaking
                   </div>
-                  <div class="text-[10px] text-gray-500">
+                  <div class="text-[10px] text-muted-foreground">
                     Insert new lines when a character is found.
                   </div>
                 </div>
@@ -166,46 +168,48 @@ export function SettingsModal(props: SettingsModalProps) {
               <label class="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={props.viewSettings.newLineConfig?.enabled ?? false}
+                  checked={props.viewSettings.newLineConfig.enabled}
                   onChange={(e) =>
                     updateNewLineConfig({ enabled: e.currentTarget.checked })
                   }
                   class="sr-only peer"
                 />
-                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                <div class="w-9 h-5 bg-surface-3 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent-brand"></div>
               </label>
             </div>
 
-            <Show when={props.viewSettings.newLineConfig?.enabled}>
-              <div class="bg-[#1e1e1e] p-3 rounded border border-[#333] space-y-3 animate-in fade-in slide-in-from-top-2">
+            <Show when={props.viewSettings.newLineConfig.enabled}>
+              <div class="bg-surface p-3 rounded border border-border space-y-3 animate-in fade-in slide-in-from-top-2">
                 <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-400 w-20">Match Char:</span>
+                  <span class="text-xs text-muted-foreground w-20">
+                    Match Char:
+                  </span>
                   <input
                     type="text"
-                    value={props.viewSettings.newLineConfig?.match || ''}
+                    value={props.viewSettings.newLineConfig.match}
                     onInput={(e) =>
                       updateNewLineConfig({ match: e.currentTarget.value })
                     }
                     placeholder="e.g. | or ,"
-                    class="flex-1 bg-[#252526] border border-[#444] rounded px-2 py-1 text-sm text-white font-mono outline-none focus:border-blue-500"
+                    class="flex-1 bg-surface-2 border border-border rounded px-2 py-1 text-sm text-foreground font-mono outline-none focus:border-accent-brand"
                   />
                 </div>
                 <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-400 w-20">
+                  <span class="text-xs text-muted-foreground w-20">
                     Break Position:
                   </span>
-                  <div class="flex flex-1 gap-1 bg-[#252526] p-1 rounded border border-[#444]">
+                  <div class="flex flex-1 gap-1 bg-surface-2 p-1 rounded border border-border">
                     <button
                       onClick={() =>
                         updateNewLineConfig({ position: 'before' })
                       }
-                      class={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded text-xs transition-colors ${props.viewSettings.newLineConfig?.position === 'before' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`}
+                      class={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded text-xs transition-colors ${props.viewSettings.newLineConfig.position === 'before' ? 'bg-accent-brand text-accent-brand-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-surface-3'}`}
                     >
                       <ArrowLeftToLine size={12} /> Before
                     </button>
                     <button
                       onClick={() => updateNewLineConfig({ position: 'after' })}
-                      class={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded text-xs transition-colors ${props.viewSettings.newLineConfig?.position === 'after' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`}
+                      class={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded text-xs transition-colors ${props.viewSettings.newLineConfig.position === 'after' ? 'bg-accent-brand text-accent-brand-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-surface-3'}`}
                     >
                       <ArrowRightToLine size={12} /> After
                     </button>
@@ -216,16 +220,16 @@ export function SettingsModal(props: SettingsModalProps) {
           </div>
         </div>
 
-        <div class="flex justify-between border-t border-[#333] pt-4">
+        <div class="flex justify-between border-t border-border pt-4">
           <button
             onClick={handleReset}
-            class="px-3 py-2 text-xs text-gray-500 hover:text-white flex items-center gap-1.5 transition-colors"
+            class="px-3 py-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors"
           >
             <RefreshCw size={12} /> Reset to Defaults
           </button>
           <button
             onClick={props.onClose}
-            class="px-6 py-2 bg-[#333] hover:bg-[#444] text-white rounded text-sm transition-colors"
+            class="px-6 py-2 bg-surface-3 hover:bg-surface-2 text-foreground rounded text-sm transition-colors"
           >
             Close
           </button>

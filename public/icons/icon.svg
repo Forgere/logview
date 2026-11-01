@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="HyperLog">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#18181b" />
+      <stop offset="1" stop-color="#0e0e10" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <line x1="150" y1="176" x2="150" y2="336" stroke="#3b82f6" stroke-width="28" />
+    <line x1="202" y1="176" x2="318" y2="176" stroke="#e4e4e7" stroke-width="26" />
+    <line x1="202" y1="256" x2="362" y2="256" stroke="#a1a1aa" stroke-width="26" />
+    <line x1="202" y1="336" x2="290" y2="336" stroke="#facc15" stroke-width="26" />
+  </g>
+  <circle cx="362" cy="336" r="30" fill="#facc15" />
+  <path d="M362 322v20" stroke="#0e0e10" stroke-width="12" stroke-linecap="round" />
+  <path d="M362 350.5v.5" stroke="#0e0e10" stroke-width="12" stroke-linecap="round" />
+</svg>

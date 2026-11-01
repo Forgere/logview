@@ -1,6 +1,7 @@
 import { Show, createSignal, onCleanup, onMount } from 'solid-js'
-import { FileText, Upload } from 'lucide-solid'
+import { FileText, Github, Upload } from 'lucide-solid'
 import type { JSX, ParentProps } from 'solid-js'
+import { GITHUB_URL } from '~/lib/constants'
 
 interface DragUploadProps {
   onFileSelect: (file: File) => void
@@ -107,33 +108,43 @@ export const DragUpload = (props: DragUploadProps & ParentProps) => {
       {/* Empty state when no files are loaded */}
       <Show when={!props.hasFiles}>
         <div
-          class="absolute inset-0 flex flex-col items-center justify-center text-gray-500 select-none z-10"
+          class="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground select-none z-10"
           onClick={handleClick}
         >
-          <div class="w-16 h-16 bg-[#252526] rounded-2xl flex items-center justify-center mb-4 border border-[#333] cursor-pointer hover:bg-[#2a2a2a] transition-colors">
+          <div class="w-16 h-16 bg-surface-2 rounded-2xl flex items-center justify-center mb-4 border border-border cursor-pointer hover:bg-surface-3 transition-colors">
             <FileText size={32} class="opacity-50" />
           </div>
-          <p class="text-lg font-medium text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+          <p class="text-lg font-medium text-surface-foreground cursor-pointer hover:text-foreground transition-colors">
             No file loaded
           </p>
-          <p class="text-sm opacity-60 mt-2 cursor-pointer hover:text-gray-300 transition-colors">
+          <p class="text-sm opacity-60 mt-2 cursor-pointer hover:text-foreground transition-colors">
             Drag & drop a log file or click to browse
           </p>
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            class="mt-6 flex items-center gap-1.5 text-xs opacity-60 hover:opacity-100 hover:text-accent-brand transition-colors"
+          >
+            <Github size={13} />
+            HyperLog on GitHub
+          </a>
         </div>
       </Show>
 
       {/* Drag overlay */}
       <Show when={isDragging()}>
         <div class="fixed inset-0 z-50 pointer-events-none">
-          <div class="absolute inset-0 bg-blue-500/20 backdrop-blur-sm flex items-center justify-center border-4 border-blue-500 border-dashed m-4 rounded-xl">
-            <div class="bg-[#1e1e1e] p-6 rounded-xl shadow-2xl flex flex-col items-center gap-4 border border-[#333]">
-              <div class="p-4 bg-blue-500/20 rounded-full text-blue-400">
+          <div class="absolute inset-0 bg-accent-brand/20 backdrop-blur-sm flex items-center justify-center border-4 border-accent-brand border-dashed m-4 rounded-xl">
+            <div class="bg-surface p-6 rounded-xl shadow-2xl flex flex-col items-center gap-4 border border-border">
+              <div class="p-4 bg-accent-brand/20 rounded-full text-accent-brand">
                 <Upload size={32} />
               </div>
-              <div class="text-xl font-bold text-gray-200">
+              <div class="text-xl font-bold text-foreground">
                 Drop log file here
               </div>
-              <div class="text-sm text-gray-500">
+              <div class="text-sm text-muted-foreground">
                 Supports .log, .txt, and other text formats
               </div>
             </div>

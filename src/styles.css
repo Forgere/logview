@@ -53,40 +53,34 @@ code {
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.871 0.006 286.286);
 }
-
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.141 0.005 285.823);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.141 0.005 285.823);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.274 0.006 286.033);
-  --input: oklch(0.274 0.006 286.033);
-  --ring: oklch(0.442 0.017 285.786);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.274 0.006 286.033);
-  --sidebar-ring: oklch(0.442 0.017 285.786);
+  /* Base (dark-only app) */
+  --background: oklch(0.165 0.005 285.823);
+  --foreground: oklch(0.92 0.004 286.32);
+  --card: oklch(0.21 0.006 285.885);
+  --card-foreground: oklch(0.92 0.004 286.32);
+  --popover: oklch(0.21 0.006 285.885);
+  --popover-foreground: oklch(0.92 0.004 286.32);
+  --border: oklch(0.32 0.006 286.033);
+  --muted-foreground: oklch(0.7 0.015 286.067);
+  --input: oklch(0.32 0.006 286.033);
+  --ring: oklch(0.623 0.188 259.709);
+  /* Elevated surfaces (VS Code-dark layered scale) */
+  --surface: oklch(0.21 0.006 285.885);
+  --surface-2: oklch(0.244 0.006 286.033);
+  --surface-3: oklch(0.284 0.006 286.033);
+  --surface-foreground: oklch(0.985 0 0);
+  /* Brand accent */
+  --accent-brand: oklch(0.623 0.188 259.709);
+  --accent-brand-foreground: oklch(0.985 0 0);
+  /* Semantic */
+  --success: oklch(0.696 0.17 162.48);
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.623 0.188 259.709);
+  --level-error: oklch(0.637 0.237 25.331);
+  --level-warn: oklch(0.769 0.188 70.08);
+  --level-info: oklch(0.696 0.17 162.48);
+  --level-debug: oklch(0.707 0.015 286.067);
 }
 
 @theme inline {
@@ -125,7 +119,19 @@ code {
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-foreground: var(--surface-foreground);
+  --color-accent-brand: var(--accent-brand);
+  --color-accent-brand-foreground: var(--accent-brand-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-level-error: var(--level-error);
+  --color-level-warn: var(--level-warn);
+  --color-level-info: var(--level-info);
+  --color-level-debug: var(--level-debug);
 }
 
 @layer base {
@@ -165,4 +171,73 @@ code {
 /* Ensure our custom search is visible while Monaco's is hidden */
 .search-bar-container {
   z-index: 1000;
+}
+
+/* ── App-level primitives ─────────────────────────────────────────── */
+
+/* Thin themed scrollbars for all overflow containers */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}
+
+/* Floating action button entrance animation */
+.floating-btn-anim {
+  animation: floating-btn-in 180ms ease-out;
+}
+@keyframes floating-btn-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Shared focus ring for interactive chrome */
+.focus-ring {
+  @apply outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-accent-brand;
+}
+
+/* ── Monaco editor decorations (token-colored, theme-aware) ───────── */
+
+/* Bookmarked / marked line */
+.marker-line {
+  background: color-mix(in oklch, var(--accent-brand) 14%, transparent);
+  border-left: 3px solid var(--accent-brand);
+}
+
+/* Inactive search match — subtle band */
+.search-match-line {
+  background: color-mix(in oklch, var(--warning) 12%, transparent);
+}
+
+/* Active (current) search match — stronger band + marker */
+.search-match-active-line {
+  background: color-mix(in oklch, var(--warning) 26%, transparent);
+  border-left: 3px solid var(--warning);
+}
+
+/* Inline highlight sweep applied to matched ranges */
+.search-match-inline {
+  background: color-mix(in oklch, var(--warning) 40%, transparent);
+  border-radius: 2px;
 }

@@ -4,8 +4,8 @@ import {
   Scripts,
   createRootRouteWithContext,
 } from '@tanstack/solid-router'
-import { HydrationScript } from 'solid-js/web'
-import { Suspense } from 'solid-js'
+import { onMount } from 'solid-js'
+import { HydrationScript, Suspense } from 'solid-js/web'
 import TanStackQueryProvider from '../integrations/tanstack-query/provider.tsx'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 
@@ -13,25 +13,40 @@ import { ErrorBoundary } from '../components/ErrorBoundary'
 import '@fontsource/inter'
 
 import styleCss from '../styles.css?url'
+import { registerServiceWorker } from '~/lib/pwa'
 
 export const Route = createRootRouteWithContext()({
   head: () => ({
-    links: [{ rel: 'stylesheet', href: styleCss }],
+    links: [
+      { rel: 'stylesheet', href: styleCss },
+      { rel: 'manifest', href: '/manifest.json' },
+      { rel: 'apple-touch-icon', href: 'icons/apple-touch-icon-180.png' },
+    ],
     meta: [
       { title: 'HyperLog - Log Viewer' },
       { name: 'description', content: 'A powerful log file viewer' },
+      { name: 'theme-color', content: '#0e0e10' },
+      { name: 'mobile-web-app-capable', content: 'yes' },
+      { name: 'apple-mobile-web-app-capable', content: 'yes' },
+      {
+        name: 'apple-mobile-web-app-status-bar-style',
+        content: 'black-translucent',
+      },
     ],
   }),
   shellComponent: RootComponent,
 })
 
 function RootComponent() {
+  onMount(() => {
+    registerServiceWorker()
+  })
   return (
     <html class="dark">
       <head>
         <HydrationScript />
       </head>
-      <body class="bg-[#1e1e1e] text-white">
+      <body class="bg-background text-foreground">
         <HeadContent />
         <Suspense>
           <ErrorBoundary

@@ -1,4 +1,4 @@
-import { createContext, createEffect, useContext } from 'solid-js'
+import { createContext, createEffect, onMount, useContext } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import type { ParentProps } from 'solid-js'
 import type { HighlightRule, ViewSettings } from '~/types'
@@ -36,15 +36,36 @@ export function ViewProvider(props: ParentProps) {
     currentExtension: 'default',
   })
 
-  // Auto-save on changes
-  createEffect(() => {
-    if (state.currentExtension) {
-      saveConfigForExtension(
-        state.currentExtension,
-        state.settings,
-        state.highlightRules,
-      )
+  // Guards the auto-save effect below: it must stay false until the `default`
+  // bucket has been restored. Otherwise the effect's first run (which sees
+  // pristine DEFAULT_VIEW_SETTINGS) would overwrite the user's saved config
+  // with defaults before anything ever reads it.
+  let restored = false
+
+  // Hydrate the `default` bucket on the client so fontSize / wrapLines /
+  // rowHeight / highlight rules survive a refresh even before a file is picked.
+  // `loadForFile` still wins afterwards: a matching extension bucket overrides
+  // these defaults when the user opens a file.
+  onMount(() => {
+    const saved = loadConfigForExtension('default')
+    if (saved) {
+      setState({
+        settings: saved.viewSettings,
+        highlightRules: saved.highlightRules,
+      })
     }
+    restored = true
+  })
+
+  // Auto-save on changes. The store fields are read *before* the `restored`
+  // gate, so the effect always tracks them: returning before any read would
+  // leave it with no dependencies and it would never re-run.
+  createEffect(() => {
+    const settings = state.settings
+    const rules = state.highlightRules
+    const extension = state.currentExtension
+    if (!restored) return
+    saveConfigForExtension(extension, settings, rules)
   })
 
   const actions: ViewActions = {

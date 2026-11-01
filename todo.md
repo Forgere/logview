@@ -15,7 +15,7 @@ React 源码位置: `../HyperLog/`
 - [x] **日志状态管理** - `logStore`，文件加载，流式进度
 - [x] **标记状态管理** - `markerStore`，书签/标记 CRUD
 - [x] **视图设置管理** - `viewStore`，字体大小，换行，高亮规则
-- [x] **弹窗状态管理** - `modalStore`，弹窗开关状态
+- [x] **弹窗状态管理** - 移除未使用的 `modalStore`，弹窗开关由 viewer.tsx 本地 signal 管理
 - [x] **配置持久化** - `configService`，按文件扩展名存储配置
 - [x] **类型定义** - `types/index.ts`，所有核心类型
 - [x] **浮动标记按钮** - 选中文本后显示"Mark Selection"按钮
@@ -48,13 +48,15 @@ React 源码位置: `../HyperLog/`
 ## 面板组件 (Panels) ✅
 
 - [x] **MarkerPanel** - 标记管理面板（底部可折叠）
-  - 功能: 虚拟滚动列表、批量选择、复制、删除、跳转
+  - 功能: 虚拟滚动列表、批量选择、行内备注编辑、复制、导出 JSON、删除、跳转
   - 位置: `src/components/panels/MarkerPanel.tsx`
 
 ## 交互功能 ✅
 
 - [x] **键盘快捷键系统** - 全局快捷键监听
   - `Ctrl+G` - 跳转行
+  - `Ctrl+M` - 仅显示匹配行
+  - `F2` / `Shift+F2` - 下一个 / 上一个标记
   - `Shift+?` - 快捷键帮助
   - `Escape` - 关闭弹窗
   - `Enter/Shift+Enter` - 搜索导航
@@ -99,3 +101,19 @@ React 源码位置: `../HyperLog/`
 - **组件已完成**: 31 项
 - **待集成/完善**: 0 项
 - **完成度**: ~100%
+
+## 设计令牌迁移 ✅
+
+所有硬编码十六进制色与灰度 Tailwind 色（`gray-*` / `blue-*` 等）已替换为 `src/styles.css` 中的语义令牌：
+
+| 旧值                              | 令牌                                   |
+| --------------------------------- | -------------------------------------- |
+| `#1e1e1e` / `#1a1a1a` / `#141414` | `surface` / `surface-2` / `background` |
+| `#252526` / `#2a2d2e`             | `surface-2` / `surface-3`              |
+| `#333` / `#444` / `gray-600`      | `border` / `muted-foreground`          |
+| `blue-500` / `blue-600`           | `accent-brand`                         |
+| `emerald-*` / `green-*`           | `success`                              |
+| `red-*`                           | `level-error` / `destructive`          |
+| `amber-*`                         | `warning`                              |
+
+Monaco 编辑器主题由 `src/lib/theme.ts` 读取同一套 CSS 变量，配色与外围 UI 保持一致。

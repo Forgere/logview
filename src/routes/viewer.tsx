@@ -6,14 +6,25 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js'
-import type { LogMarker, MarkerRange, WatchMode } from '~/types'
+import type { LogLevel, LogMarker, MarkerRange, WatchMode } from '~/types'
 import { AppHeader } from '~/components/Viewer/AppHeader'
 import { SearchBar } from '~/components/Viewer/SearchBar'
 import { LogViewer } from '~/components/Viewer/LogViewer'
 import { DragUpload } from '~/components/Viewer/DragUpload'
+import { FilterBar } from '~/components/Viewer/FilterBar'
+import { StatusBar } from '~/components/Viewer/StatusBar'
+import { ConfirmDialog } from '~/components/ui/Modal'
+import { ToastHost, toast } from '~/stores/toastStore'
 import { LogProvider, useLog } from '~/stores/logStore'
 import { SearchProvider, useSearch } from '~/stores/searchStore'
 import { ViewProvider, useView } from '~/stores/viewStore'
+import {
+  UI_KEYS,
+  readStored,
+  usePersistedSignal,
+  writeStored,
+} from '~/lib/persist'
+import { APP_VERSION } from '~/lib/version'
 import { GoToLineModal } from '~/components/modals/GoToLineModal'
 import { ShortcutsModal } from '~/components/modals/ShortcutsModal'
 import { SettingsModal } from '~/components/modals/SettingsModal'
@@ -21,6 +32,7 @@ import { HighlightSettingsModal } from '~/components/modals/HighlightSettingsMod
 import { WatchSettingsModal } from '~/components/modals/WatchSettingsModal'
 import { CompareModal } from '~/components/modals/CompareModal'
 import { AnalysisModal } from '~/components/modals/AnalysisModal'
+import { UpgradeGuideModal } from '~/components/modals/UpgradeGuideModal'
 import { MarkerPanel } from '~/components/panels/MarkerPanel'
 
 export const Route = createFileRoute('/viewer')({
@@ -46,7 +58,10 @@ function RouteComponent() {
   const [viewState, viewActions] = useView()
 
   // Layout state
-  const [isMarkerPanelOpen, setIsMarkerPanelOpen] = createSignal(true)
+  const [isMarkerPanelOpen, setIsMarkerPanelOpen] = usePersistedSignal(
+    UI_KEYS.markerPanelOpen,
+    true,
+  )
 
   // Modal state
   const [showWatchModal, setShowWatchModal] = createSignal(false)
@@ -54,19 +69,30 @@ function RouteComponent() {
   const [showShortcuts, setShowShortcuts] = createSignal(false)
   const [showGoToLine, setShowGoToLine] = createSignal(false)
   const [showHighlightSettings, setShowHighlightSettings] = createSignal(false)
+  const [showClearConfirm, setShowClearConfirm] = createSignal(false)
   const [showCompare, setShowCompare] = createSignal(false)
   const [showAnalysis, setShowAnalysis] = createSignal(false)
-
-  // Watch state
+  const [showUpgradeGuide, setShowUpgradeGuide] = createSignal(false)
   const [watchPattern, setWatchPattern] = createSignal('')
 
-  // Virtual scrolling state
-  const [visibleRange, setVisibleRange] = createSignal({
-    start: 0,
-    end: 1000, // Initial visible lines
-  })
-  const LINE_HEIGHT = 20 // Approximate line height in pixels
-  const VISIBLE_BUFFER = 50 // Extra lines to render for smooth scrolling
+  // Persisted as a string array: JSON.stringify turns a Set into {}.
+  const [excludedLevelList, setExcludedLevelList] = usePersistedSignal<
+    Array<LogLevel>
+  >(UI_KEYS.excludedLevels, [])
+  const excludedLevels = createMemo(() => new Set(excludedLevelList()))
+  const [searchOnly, setSearchOnly] = usePersistedSignal(
+    UI_KEYS.searchOnly,
+    false,
+  )
+
+  const toggleLevel = (level: LogLevel) => {
+    setExcludedLevelList((prev) =>
+      prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level],
+    )
+  }
+
+  // Cursor position for the status bar
+  const [cursor, setCursor] = createSignal({ line: 1, column: 1 })
 
   // Optimize: Derived signals for virtual scrolling - Use line count from the log store state
   const totalLines = createMemo(() => {
@@ -85,30 +111,11 @@ function RouteComponent() {
   let searchInputRef: HTMLInputElement | undefined
   let monacoEditorRef: any = null
 
-  // Optimize: Virtual scroll handler
-  const handleVirtualScroll = (scrollTop: number) => {
-    const containerHeight = 600
-    const firstVisibleLine = Math.floor(scrollTop / LINE_HEIGHT)
-    const visibleLineCount = Math.ceil(containerHeight / LINE_HEIGHT)
-
-    // Calculate visible range with buffer
-    const start = Math.max(0, firstVisibleLine - VISIBLE_BUFFER)
-    const end = Math.min(
-      totalLines(),
-      firstVisibleLine + visibleLineCount + VISIBLE_BUFFER,
-    )
-
-    // Only update if range actually changed
-    const currentRange = visibleRange()
-    if (start !== currentRange.start || end !== currentRange.end) {
-      setVisibleRange({ start, end })
-    }
-  }
-
   // Optimize: File handling using log store
   const handleFileSelect = (file: File) => {
-    // Reset virtual scrolling state
-    setVisibleRange({ start: 0, end: 1000 })
+    // Reset line-filter state on a fresh file
+    setExcludedLevelList([])
+    setSearchOnly(false)
 
     // Load config for file extension
     viewActions.loadForFile(file.name)
@@ -195,10 +202,12 @@ function RouteComponent() {
   }
 
   const handleClearAllMarkers = () => {
-    if (confirm('Delete all markers?')) {
-      setMarkers([])
-      setSelectedMarkerIds(new Set<string>())
-    }
+    setShowClearConfirm(true)
+  }
+
+  const confirmClearAllMarkers = () => {
+    setMarkers([])
+    setSelectedMarkerIds(new Set<string>())
   }
 
   const handleToggleSelectMarker = (id: string) => {
@@ -228,11 +237,35 @@ function RouteComponent() {
       .map((m) => `[Line ${m.range.startLineNumber}] ${m.contextLine}`)
       .join('\n')
     navigator.clipboard.writeText(text)
-    alert(`${selected.length} lines copied to clipboard.`)
+    toast(`${selected.length} lines copied to clipboard.`, 'success')
   }
 
   const handleScrollToMarker = (range: MarkerRange) => {
     monacoEditorRef?.revealLineInCenter(range.startLineNumber)
+  }
+
+  const handleUpdateMarkerNote = (id: string, note: string) => {
+    setMarkers((prev) => prev.map((m) => (m.id === id ? { ...m, note } : m)))
+  }
+
+  const handleExportMarkers = () => {
+    const payload = markers().map((m) => ({
+      line: m.range.startLineNumber,
+      timestamp: m.timestamp,
+      selectedText: m.selectedText,
+      contextLine: m.contextLine,
+      note: m.note ?? '',
+    }))
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `markers-${Date.now()}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast(`${payload.length} markers exported.`, 'success')
   }
 
   // Handle text selection from LogViewer
@@ -273,6 +306,14 @@ function RouteComponent() {
     })
   })
 
+  // Show the release notes once per version, only after hydration.
+  onMount(() => {
+    const seen: string = readStored(UI_KEYS.seenVersion, '')
+    if (seen !== APP_VERSION) {
+      setShowUpgradeGuide(true)
+    }
+  })
+
   // Keyboard shortcuts
   onMount(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -280,6 +321,29 @@ function RouteComponent() {
       if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault()
         setShowGoToLine(true)
+        return
+      }
+      // Ctrl/Cmd + M - Toggle matches-only view
+      if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
+        e.preventDefault()
+        setSearchOnly((v) => !v)
+        return
+      }
+
+      // F2 - Jump to next/previous marker (Shift+F2 = previous)
+      if (e.key === 'F2') {
+        e.preventDefault()
+        const list = markers()
+        if (list.length === 0) return
+        const current = cursor().line
+        const sorted = [...list].sort(
+          (a, b) => a.range.startLineNumber - b.range.startLineNumber,
+        )
+        const target = e.shiftKey
+          ? [...sorted].reverse().find((m) => m.range.startLineNumber < current)
+          : sorted.find((m) => m.range.startLineNumber > current)
+        const pick = target ?? sorted[0]
+        monacoEditorRef?.revealLineInCenter(pick.range.startLineNumber)
         return
       }
 
@@ -329,20 +393,18 @@ function RouteComponent() {
       }
     }
 
-    if (typeof window !== 'undefined' && window.addEventListener) {
-      window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown)
 
-      onCleanup(() => {
-        window.removeEventListener('keydown', handleKeyDown)
-      })
-    }
+    onCleanup(() => {
+      window.removeEventListener('keydown', handleKeyDown)
+    })
   })
 
   return (
-    <div class="flex h-screen flex-col select-none bg-[#1e1e1e]">
+    <div class="flex h-screen flex-col select-none bg-background">
       <ErrorBoundary
         fallback={(err) => (
-          <div class="p-4 bg-red-600 text-white">
+          <div class="p-4 bg-destructive text-destructive-foreground">
             <h2 class="font-bold mb-2">An error occurred:</h2>
             <pre class="whitespace-pre-wrap">{err.message}</pre>
           </div>
@@ -364,6 +426,7 @@ function RouteComponent() {
           onFileSelect={handleFileSelect}
           onOpenSettings={() => setShowSettings(true)}
           onSearchFocus={() => searchInputRef?.focus()}
+          onOpenUpgradeGuide={() => setShowUpgradeGuide(true)}
         />
 
         <SearchBar
@@ -381,6 +444,15 @@ function RouteComponent() {
           onPrev={handlePrevSearch}
           onOpenHighlights={() => setShowHighlightSettings(true)}
           inputRef={searchInputRef}
+        />
+        <FilterBar
+          counts={logState.levelCounts}
+          excluded={excludedLevels()}
+          onToggleLevel={toggleLevel}
+          searchOnly={searchOnly()}
+          onToggleSearchOnly={() => setSearchOnly((v) => !v)}
+          matchCount={searchDerived.resultsCount()}
+          hasQuery={Boolean(searchDerived.searchQuery())}
         />
 
         <div class="flex-1 flex flex-col overflow-hidden">
@@ -405,14 +477,22 @@ function RouteComponent() {
               markers={markers()}
               onAddMarker={handleAddMarker}
               onSelectionChange={handleSelectionChange}
-              onUserScroll={(_isAtBottom, scrollTop) => {
-                // Handle virtual scrolling only, no following behavior
-                handleVirtualScroll(scrollTop || 0)
-              }}
               setSearchQuery={searchActions.setQuery}
               focusSearchInput={() => searchInputRef?.focus()}
               updateMatches={searchActions.updateMatches}
               onGoToLine={() => setShowGoToLine(true)}
+              excludedLevels={excludedLevels}
+              searchOnly={searchOnly}
+              onCursorChange={(line, column) => setCursor({ line, column })}
+            />
+
+            <StatusBar
+              line={cursor().line}
+              column={cursor().column}
+              totalLines={totalLines()}
+              progress={logState.progress}
+              isStreaming={logState.isStreaming}
+              counts={logState.levelCounts}
             />
 
             <DragUpload
@@ -439,6 +519,8 @@ function RouteComponent() {
             onDelete={handleBulkDeleteMarkers}
             onDeleteMarker={handleDeleteMarker}
             onClearAll={handleClearAllMarkers}
+            onUpdateNote={handleUpdateMarkerNote}
+            onExport={handleExportMarkers}
             onScrollTo={handleScrollToMarker}
             onOpenWatch={() => setShowWatchModal(true)}
           />
@@ -500,6 +582,25 @@ function RouteComponent() {
           markers={markers()}
           selectedIds={selectedMarkerIds()}
         />
+
+        <UpgradeGuideModal
+          isOpen={showUpgradeGuide()}
+          onClose={() => {
+            setShowUpgradeGuide(false)
+            writeStored(UI_KEYS.seenVersion, APP_VERSION)
+          }}
+        />
+
+        <ConfirmDialog
+          isOpen={showClearConfirm()}
+          onClose={() => setShowClearConfirm(false)}
+          onConfirm={confirmClearAllMarkers}
+          title="Clear all markers"
+          message="This will remove every bookmark. This cannot be undone."
+          confirmLabel="Clear all"
+        />
+
+        <ToastHost />
       </ErrorBoundary>
     </div>
   )
